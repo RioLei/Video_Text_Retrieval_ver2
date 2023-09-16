@@ -138,7 +138,7 @@ class File4Faiss:
     print(f'Saved {des_path}')
     print(f"Number of Index: {count}")
 
-  def load_json_file(self, json_path: str):
+  def load_json_file(json_path: str):
     with open(json_path, 'r') as f:
       js = json.loads(f.read())
 
@@ -200,86 +200,28 @@ lavis_dir = os.path.join(current_dir, 'LAVIS')
 sys.path.append(lavis_dir)
 from lavis.models import load_model_and_preprocess
 
-
-class MyFaiss:
-  def __init__(self, root_database: str, bin_file: str, json_path: str):    
-    self.index = self.load_bin_file(bin_file)
-    self.id2img_fps = self.load_json_file(json_path)
-
-    self.translater = Translation()
-    
-    self.__device = "cuda" if torch.cuda.is_available() else "cpu"
-    # self.model, preprocess = clip.load("ViT-B/16", device=self.__device)
-    self.model, self.vis_processors_blip, self.text_processors_blip = load_model_and_preprocess("blip_image_text_matching", 
-                                                                                      "base", 
-                                                                                      device=self.__device, 
-                                                                                      is_eval=True)
-    
-  def load_json_file(self, json_path: str):
-      # with open(json_path, 'r') as f:
+def load_json_file(json_path: str):
       js = json.load(open(json_path, 'r'))
 
       return {int(k):v for k,v in js.items()}
-
-  def load_bin_file(self, bin_file: str):
+    
+def load_bin_file(bin_file: str):
     return faiss.read_index(bin_file)
+  
+def image_search_faiss(index, DictImagePath, id_query, k):
+    
+    query_feats = index.reconstruct(id_query).reshape(1,-1)
 
-  def show_images(self, image_paths):
-    fig = plt.figure(figsize=(15, 10))
-    columns = int(math.sqrt(len(image_paths)))
-    rows = int(np.ceil(len(image_paths)/columns))
-
-    for i in range(1, columns*rows +1):
-      img = plt.imread(image_paths[i - 1])
-      ax = fig.add_subplot(rows, columns, i)
-      ax.set_title('/'.join(image_paths[i - 1].split('/')[-3:]))
-
-      plt.imshow(img)
-      plt.axis("off")
-      
-    plt.show()
-
-  def image_search(self, id_query, k):    
-    query_feats = self.index.reconstruct(id_query).reshape(1,-1)
-
-    scores, idx_image = self.index.search(query_feats, k=k)
+    scores, idx_image = index.search(query_feats, k=k)
     idx_image = idx_image.flatten()
 
-    infos_query = list(map(self.id2img_fps.get, list(idx_image)))
+    id2img_fps = DictImagePath
+    infos_query = list(map(id2img_fps.get, list(idx_image)))
     image_paths = [info['image_path'] for info in infos_query]
     
-    # print(f"scores: {scores}")
-    # print(f"idx: {idx_image}")
-    # print(f"paths: {image_paths}")
-    
     return scores, idx_image, infos_query, image_paths
-
-  def text_search(self, text, k):
-    if detect(text) == 'vi':
-      text = self.translater(text)
-
-    ###### TEXT FEATURES EXACTING ######
-    # text = clip.tokenize([text]).to(self.__device)  
-    # text_features = self.model.encode_text(text).cpu().detach().numpy().astype(np.float32)
-    txt = self.text_processors_blip["eval"](text)
-    text_features = self.model.encode_text(txt, self.__device).cpu().detach().numpy()
-
-    ###### SEARCHING #####
-    scores, idx_image = self.index.search(text_features, k=k)
-    idx_image = idx_image.flatten()
-
-    ###### GET INFOS KEYFRAMES_ID ######
-    infos_query = list(map(self.id2img_fps.get, list(idx_image)))
-    image_paths = [info['image_path'] for info in infos_query]
-    # lst_shot = [info['list_shot_id'] for info in infos_query]
-
-    # print(f"scores: {scores}")
-    # print(f"idx: {idx_image}")
-    # print(f"paths: {image_paths}")
-
-    return scores, idx_image, infos_query, image_paths
-
-  def write_csv(self, infos_query, des_path):
+  
+def write_csv(infos_query, des_path):
     check_files = []
     
     ### GET INFOS SUBMIT ###
@@ -314,12 +256,78 @@ class MyFaiss:
       print(f"Save submit file to {des_path}")
     else:
       print('Exceed the allowed number of lines')
+  
+def text_search_faiss(index, DictImagePath, text, k):
+    if detect(text) == 'vi':
+      translater = Translation()
+      text = translater(text)
 
-def main():
+    __device = "cuda" if torch.cuda.is_available() else "cpu"
+    # self.model, preprocess = clip.load("ViT-B/16", device=self.__device)
+    model, vis_processors_blip, text_processors_blip = load_model_and_preprocess("blip_image_text_matching", 
+                                                                                      "base", 
+                                                                                      device=__device, 
+                                                                                      is_eval=True)
+    
+    ###### TEXT FEATURES EXACTING ######
+    # text = clip.tokenize([text]).to(__device)  
+    # text_features = self.model.encode_text(text).cpu().detach().numpy().astype(np.float32)
+    txt = text_processors_blip["eval"](text)
+    text_features = model.encode_text(txt, __device).cpu().detach().numpy()
+
+    ###### SEARCHING #####
+    scores, idx_image = index.search(text_features, k=k)
+    idx_image = idx_image.flatten()
+
+    ###### GET INFOS KEYFRAMES_ID ######
+    id2img_fps = DictImagePath
+    infos_query = list(map(id2img_fps.get, list(idx_image)))
+    image_paths = [info['image_path'] for info in infos_query]
+    # lst_shot = [info['list_shot_id'] for info in infos_query]
+
+    # print(f"scores: {scores}")
+    # print(f"idx: {idx_image}")
+    # print(f"paths: {image_paths}")
+
+    return scores, idx_image, infos_query, image_paths
+  
+def extract_feats_from_bin(bin_file, idx_image):
+    index = faiss.read_index(bin_file)
+    feats = []
+    ids = []
+
+    for idx in idx_image:
+        # print(idx)
+        feat = index.reconstruct(idx)
+        feats.append(feat)
+        ids.append(idx)
+
+    feats = np.vstack(feats)
+    return ids, feats
+
+# import numpy as np
+   
+def save_feats_to_bin(ids, feats, output_bin_path):
+    index = faiss.IndexFlatIP(256)
+    index.add(feats)
+    faiss.write_index(index, output_bin_path)
+    arr_idx = ' '.join(str(id) for id in ids)
+    # Ghi chuỗi vào tệp tin
+    with open('search_continues/list_index.txt', 'w') as file:
+        file.write(arr_idx)
+    print('done')
+
+def mapping_index(a, b):
+    mapped_array = []
+    for index in b:
+        mapped_array.append(a[index])
+    return mapped_array
+  
+# def main():
   
   #### CREATE JSON AND BIN FILES #####
-  create_file = File4Faiss('Database')
-  create_file.write_json_file(json_path='./', shot_frames_path='./scenes_txt') # --> create keyframea_id.json
+  # create_file = File4Faiss('Database')
+  # create_file.write_json_file(json_path='./', shot_frames_path='./scenes_txt') # --> create keyframea_id.json
   # create_file.write_bin_file(bin_path='./dict/', json_path='./dict/keyframes_id.json', method='cosine')
 
   # ##### TESTING #####
@@ -343,6 +351,3 @@ def main():
   # scores, _, infos_query, image_paths = cosine_faiss.text_search(text, k=9)
   # # cosine_faiss.write_csv(infos_query, des_path='/content/submit.csv')
   # cosine_faiss.show_images(image_paths)
-
-if __name__ == "__main__":
-    main()
