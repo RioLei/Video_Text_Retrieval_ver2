@@ -3,28 +3,42 @@ import cv2
 import os
 os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 import numpy as np
+from utils.nlp_processing import Translation
 import pandas as pd
 import json
 from pathlib import Path
 from posixpath import join
-
-from utils.faiss_processing import MyFaiss
+import faiss
+from langdetect import detect
+from utils.faiss_processing import image_search_faiss, text_search_faiss, write_csv, extract_feats_from_bin, save_feats_to_bin,load_json_file,load_bin_file,mapping_index
 from utils.submit import write_csv, show_csv
-from utils.bert_processing import BERTSearch
+# from utils.bert_processing import BERTSearch
 from utils.ocr_processing import fill_ocr_results, fill_ocr_df
+import torch
+import sys
+import os
 
+current_dir = os.path.dirname(os.path.abspath(__file__))
+
+# Xác định đường dẫn tới thư mục LAVIS
+lavis_dir = os.path.join(current_dir, 'LAVIS')
+
+# Thêm đường dẫn tương đối của thư mục LAVIS vào sys.path
+sys.path.append(lavis_dir)
+from lavis.models import load_model_and_preprocess
 # http://0.0.0.0:5001/thumbnailimg?index=0
 
 # app = Flask(__name__, template_folder='templates', static_folder='static')
 app = Flask(__name__, template_folder='templates')
 
 # Faiss
-bin_file='dict/faiss_blip_v1_cosine.bin'
+# bin_file='dict/faiss_blip_v1_cosine.bin'
 json_path = 'dict/keyframes_id.json'
 json_id2img_path = 'dict/dict_image_path_id2img.json'
 json_img2id_path = 'dict/dict_image_path_img2id.json'
 json_keyframe2id = 'dict/keyframe_path2id.json'
 json_keyframe2path = 'dict/keyframe_id2path.json'
+file_path = 'search_continues/list_index.txt'
 
 # with open("dict/info_ocr.txt", "r", encoding="utf8") as fi:
 #     ListOcrResults = list(map(lambda x: x.replace("\n",""), fi.readlines()))
@@ -46,13 +60,9 @@ with open(json_keyframe2path, 'r') as f:
 with open(json_keyframe2id, 'r') as f:
     DictKeyframe2Id = json.loads(f.read())
 
-CosineFaiss = MyFaiss('Database', bin_file, json_path)
-DictImagePath = CosineFaiss.id2img_fps
-LenDictPath = len(CosineFaiss.id2img_fps)
-print("LenDictPath: ", LenDictPath)
-# exit()
-# CosineFaiss.id2img_fps
-
+   
+LenDictPath = len(load_json_file(json_path))
+DictImagePath = load_json_file(json_path)
 # BERT
 # MyBert = BERTSearch(dict_bert_search='dict/keyframes_id_bert.json', bin_file='dict/faiss_bert.bin', mode='search')
 
@@ -60,13 +70,32 @@ print("LenDictPath: ", LenDictPath)
 def thumbnailimg():
     print("load_iddoc")
 
+    # global new_bin_file
+    # bin_file = new_bin_file if new_bin_file else 'dict/faiss_blip_v1_cosine.bin'
+    # CosineFaiss = MyFaiss('Database', bin_file, json_path)
+    # DictImagePath = load_json_file(json_path)
+    # LenDictPath = len(load_json_file(json_path))
+    
     # remove old file submit 
     submit_path = join("submission", "submit.csv")
     old_submit_path = Path(submit_path)
+    
     if old_submit_path.is_file():
         os.remove(submit_path)
         # open(submit_path, 'w').close()
-
+    temp_faiss_path = join("search_continues", "temp_faiss.bin")
+    old_temp_path = Path(temp_faiss_path)
+    if old_temp_path.is_file():
+        os.remove(old_temp_path)
+    
+    temp_txt_path = join("search_continues", "list_index.txt")
+    old_temp_path = Path(temp_txt_path)
+    if old_temp_path.is_file():
+        os.remove(old_temp_path)
+        
+    # bin_file = 'dict/faiss_blip_v1_cosine.bin'
+    print("LenDictPath: ", LenDictPath)
+    
     pagefile = []
     index = int(request.args.get('index'))
     if index == None:
@@ -113,15 +142,146 @@ def image_search():
     print("image search")
     pagefile = []
     id_query = int(request.args.get('imgid'))
-    _, list_ids, _, list_image_paths = CosineFaiss.image_search(id_query, k=200)
+        
+    temp_faiss_path = join("search_continues", "temp_faiss.bin")
+    faiss_path = Path(temp_faiss_path)
+    if faiss_path.is_file():
+        print("continue searchinggg................................................................")
+        bin_file = 'search_continues/temp_faiss.bin'
+        k= 200
+        
+    else:
+        bin_file = 'dict/faiss_blip_v1_cosine.bin' 
+        k = 500
+        
+    index = load_bin_file(bin_file)
+    query_feats = index.reconstruct(id_query).reshape(1,-1)
+    
+    _, idx_image = index.search(query_feats, k=k)
+    idx_image = idx_image.flatten()
+    
+    # Check search continues
+    temp_txt_path = join("search_continues", "list_index.txt")
+    txt_path = Path(temp_txt_path)
+    if txt_path.is_file(): 
+        # Đọc dữ liệu từ tệp tin
+        with open('search_continues/list_index.txt', 'r') as file:
+            data_str = file.read()
+        data_list = data_str.split()
+        data_array = [int(num) for num in data_list]
+        idx_image = mapping_index(data_array, idx_image)
+    
+    id2img_fps = DictImagePath
+    infos_query = list(map(id2img_fps.get, list(idx_image)))
+    image_paths = [info['image_path'] for info in infos_query]
+    
+    # print(image_paths)
+    
+    # _, list_ids, _, list_image_paths = image_search_faiss(index, DictImagePath,id_query, k=200)
+    print("searching.......")
+    imgperindex = 100 
+
+    for imgpath, id in zip(image_paths, idx_image):
+        pagefile.append({'imgpath': imgpath, 'id': int(id)})
+    print("searching.........")
+    data = {'num_page': int(LenDictPath/imgperindex)+1, 'pagefile': pagefile}
+    
+    return render_template('index_thumb.html', data=data)
+
+
+@app.route('/textsearch')
+def text_search():
+    print("text search")
+    
+    temp_faiss_path = join("search_continues", "temp_faiss.bin")
+    faiss_path = Path(temp_faiss_path)
+    if faiss_path.is_file():
+        print("continue searchinggg................................................................")
+        bin_file = 'search_continues/temp_faiss.bin'
+        k = 200
+        
+    else:
+        bin_file = 'dict/faiss_blip_v1_cosine.bin'
+        k = 500
+        
+    pagefile = []
+    text_query = request.args.get('textquery')
+    index = load_bin_file(bin_file)
+    
+    
+    if detect(text_query) == 'vi':
+        translater = Translation()
+        text = translater(text_query)
+    else:
+        text = text_query
+
+    __device = "cuda" if torch.cuda.is_available() else "cpu"
+    # self.model, preprocess = clip.load("ViT-B/16", device=self.__device)
+    model, vis_processors_blip, text_processors_blip = load_model_and_preprocess("blip_image_text_matching", 
+                                                                                      "base", 
+                                                                                      device=__device, 
+                                                                                      is_eval=True)
+    
+    ###### TEXT FEATURES EXACTING ######
+    # text = clip.tokenize([text]).to(__device)  
+    # text_features = self.model.encode_text(text).cpu().detach().numpy().astype(np.float32)
+    txt = text_processors_blip["eval"](text)
+    text_features = model.encode_text(txt, __device).cpu().detach().numpy()
+
+    ###### SEARCHING #####
+    _, idx_image = index.search(text_features, k=k)
+    idx_image = idx_image.flatten()
+    
+    # Check search continues
+    temp_txt_path = join("search_continues", "list_index.txt")
+    txt_path = Path(temp_txt_path)
+    if txt_path.is_file(): 
+        # Đọc dữ liệu từ tệp tin
+        with open('search_continues/list_index.txt', 'r') as file:
+            data_str = file.read()
+        data_list = data_str.split()
+        data_array = [int(num) for num in data_list]
+        idx_image = mapping_index(data_array, idx_image)
+        
+    # _, idx_image2 = faiss.read_index(bin_file).search(text_features, k=k)
+    # print(type(idx_image2))
+    # print(type(index))
+    
+    ###### GET INFOS KEYFRAMES_ID ######
+    id2img_fps = DictImagePath
+    infos_query = list(map(id2img_fps.get, list(idx_image)))
+    image_paths = [info['image_path'] for info in infos_query]
+    
+    # _, list_ids, _, list_image_paths = text_search_faiss(index, json_path, text_query, k)
 
     imgperindex = 100 
 
-    for imgpath, id in zip(list_image_paths, list_ids):
+    for imgpath, id in zip(image_paths, idx_image):
         pagefile.append({'imgpath': imgpath, 'id': int(id)})
 
     data = {'num_page': int(LenDictPath/imgperindex)+1, 'pagefile': pagefile}
     
+    return render_template('index_thumb.html', data=data)
+
+@app.route('/searchcontinues', methods=['POST'])
+def search_continues():
+    # pagefile = request.files['pagefile']
+    data = request.get_json()
+    pagefile = data['pagelist']
+    # print(pagefile)
+    ids = []
+    for item in pagefile:
+        ids.append(int(item['id']))
+    
+    new_bin_file = './search_continues/temp_faiss.bin'
+    # print(ids)
+    # exit()
+    bin_file = 'dict/faiss_blip_v1_cosine.bin'
+    ids, feats = extract_feats_from_bin(bin_file, ids)
+    save_feats_to_bin(ids, feats, new_bin_file)
+    print('Saved new bin file')
+    imgperindex = 100
+    data = {'num_page': int(LenDictPath/imgperindex)+1, 'pagefile': pagefile}
     return render_template('index_thumb.html', data=data)
 
 @app.route('/neighborsearch')
@@ -130,6 +290,7 @@ def neightbor_search():
     pagefile = []
     id_query = int(request.args.get('imgid'))
 
+    
     list_shot_path = DictImagePath[id_query]['list_shot_path']
     
     imgperindex = 100 
@@ -163,27 +324,7 @@ def neightbor_search():
     
     return render_template('index_thumb.html', data=data)
 
-@app.route('/textsearch')
-def text_search():
-    print("text search")
-
-    pagefile = []
-    text_query = request.args.get('textquery')
-    _, list_ids, _, list_image_paths = CosineFaiss.text_search(text_query, k=200)
-
-    imgperindex = 100 
-
-    for imgpath, id in zip(list_image_paths, list_ids):
-        pagefile.append({'imgpath': imgpath, 'id': int(id)})
-
-    data = {'num_page': int(LenDictPath/imgperindex)+1, 'pagefile': pagefile}
     
-    return render_template('index_thumb.html', data=data)
-
-# @app.route('/searchcontinue')
-# def search_continue():
-    
-
 @app.route('/asrsearch')
 # def asrsearch():
 #     print("asr search")
