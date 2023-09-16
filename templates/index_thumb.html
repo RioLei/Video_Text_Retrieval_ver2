@@ -458,7 +458,7 @@
             <input id="text_query" type="text" placeholder="Text query" onkeypress="handleKeyPress(event)">
           </div>
           <span class="group_btn">
-            <button class="custom-btn btn-13" onclick="search();"><span>Multiple</span></button>
+            <button class="custom-btn btn-13" onclick="search_continues();"><span>Keep</span></button>
             <button class="custom-btn btn-13" onclick="reset()"><span>Clear</span></button>
             <!-- <button class="custom-btn btn-13" onclick="submit_btn()"><span>Submit</span></button> -->
             <button class="custom-btn btn-13" onclick="download_btn()"><span>Dowload</span></button>
@@ -593,7 +593,7 @@
                           <button id="prevButton" onclick="showPrevImage(${item.id}, ${item.imgpath})">Trước</button>
 
                           <!-- Nút chuyển đến ảnh sau -->
-                          <button id="nextButton" onclick="showNextImage(${item.id}, ${item.imgpath})">Sau</button>
+                          <button id="nextButton" onclick="showNextImage(${item.id}, 'get_img?fpath=${item.imgpath}')">Sau</button>
                         </div>
                     </div>`
                 )
@@ -628,7 +628,7 @@
         function showPrevImage(id, imgpath) {
           if (id > 0) {
             id -= 1;
-            showImage(id, hoverImg[id]);
+            showImage(id, imgpath);
           }
         }
         
@@ -681,6 +681,42 @@
         function go_neightbor_frame_search(id){
             window.open("/neighborsearch?imgid="+id);
         }
+
+        //function search_continues(){
+          //let num_page = data['num_page'];
+          //let pagelist = data['pagelist'];
+          
+          // window.open("/searchcontinues?file="+encodeURIComponent(JSON.stringify(pagefile_list)));
+          //window.open("/searchcontinues?pagelist"+"");
+       // }
+
+        function search_continues() {
+          const url = 'http://127.0.0.1:5001/searchcontinues';
+          let pagefile_list = data['pagefile'];
+          console.log('data pagelist:', pagefile_list)
+          const pagelist = {
+            'pagelist': pagefile_list
+          }
+
+          fetch(url, {
+              method: 'POST',
+              headers: {
+                  'Content-Type': 'application/json'
+              },
+              body: JSON.stringify(pagelist)
+          })
+          .then(response => response.json())
+          .then(result => {
+              // Handle the API response here
+              document.getElementById('result').textContent = JSON.stringify(result);
+          })
+          .catch(error => {
+              console.error('Error:', error);
+          });
+
+         window.open("/searchcontinues?pagelist"+"1");
+      }
+
 
         function on_load(){
             var url = new URL(window.location.href);
