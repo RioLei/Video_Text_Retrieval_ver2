@@ -142,23 +142,25 @@ def image_search():
     print("image search")
     pagefile = []
     id_query = int(request.args.get('imgid'))
+    k = request.args.get('topk')
+    k = int(k[3:])
         
     temp_faiss_path = join("search_continues", "temp_faiss.bin")
     faiss_path = Path(temp_faiss_path)
     if faiss_path.is_file():
         print("continue searchinggg................................................................")
         bin_file = 'search_continues/temp_faiss.bin'
-        k= 200
+        k= k-200
         
     else:
         bin_file = 'dict/faiss_blip_v1_cosine.bin' 
-        k = 500
         
     index = load_bin_file(bin_file)
     query_feats = index.reconstruct(id_query).reshape(1,-1)
     
-    _, idx_image = index.search(query_feats, k=k)
+    scores, idx_image = index.search(query_feats, k=k)
     idx_image = idx_image.flatten()
+    scores = scores.flatten()
     
     # Check search continues
     temp_txt_path = join("search_continues", "list_index.txt")
@@ -174,15 +176,15 @@ def image_search():
     id2img_fps = DictImagePath
     infos_query = list(map(id2img_fps.get, list(idx_image)))
     image_paths = [info['image_path'] for info in infos_query]
-    
+    scores = np.array(scores, dtype=np.float32).tolist()
     # print(image_paths)
     
     # _, list_ids, _, list_image_paths = image_search_faiss(index, DictImagePath,id_query, k=200)
     print("searching.......")
     imgperindex = 100 
 
-    for imgpath, id in zip(image_paths, idx_image):
-        pagefile.append({'imgpath': imgpath, 'id': int(id)})
+    for imgpath, id, score in zip(image_paths, idx_image, scores):
+        pagefile.append({'imgpath': imgpath, 'id': int(id), 'score':score})
     print("searching.........")
     data = {'num_page': int(LenDictPath/imgperindex)+1, 'pagefile': pagefile}
     
@@ -192,17 +194,18 @@ def image_search():
 @app.route('/textsearch')
 def text_search():
     print("text search")
+    k = str(request.args.get('topk'))
+    k = int(k[3:])
     
     temp_faiss_path = join("search_continues", "temp_faiss.bin")
     faiss_path = Path(temp_faiss_path)
     if faiss_path.is_file():
         print("continue searchinggg................................................................")
         bin_file = 'search_continues/temp_faiss.bin'
-        k = 200
+        k = k-1
         
     else:
         bin_file = 'dict/faiss_blip_v1_cosine.bin'
-        k = 500
         
     pagefile = []
     text_query = request.args.get('textquery')
@@ -229,8 +232,9 @@ def text_search():
     text_features = model.encode_text(txt, __device).cpu().detach().numpy()
 
     ###### SEARCHING #####
-    _, idx_image = index.search(text_features, k=k)
+    scores, idx_image = index.search(text_features, k=k)
     idx_image = idx_image.flatten()
+    scores = scores.flatten()
     
     # Check search continues
     temp_txt_path = join("search_continues", "list_index.txt")
@@ -255,9 +259,11 @@ def text_search():
     # _, list_ids, _, list_image_paths = text_search_faiss(index, json_path, text_query, k)
 
     imgperindex = 100 
+    scores = np.array(scores, dtype=np.float32).tolist()
+    # print(scores)
 
-    for imgpath, id in zip(image_paths, idx_image):
-        pagefile.append({'imgpath': imgpath, 'id': int(id)})
+    for imgpath, id, score in zip(image_paths, idx_image, scores):
+        pagefile.append({'imgpath': imgpath, 'id': int(id), 'score':score})
 
     data = {'num_page': int(LenDictPath/imgperindex)+1, 'pagefile': pagefile}
     
@@ -419,8 +425,16 @@ def get_img():
     img = cv2.resize(img, (1280,720))
 
     # print(img.shape)
-    img = cv2.putText(img, image_name, (30, 80), cv2.FONT_HERSHEY_SIMPLEX, 
-                   3, (255, 0, 0), 4, cv2.LINE_AA)
+    # Tọa độ và kích thước hình chữ nhật nền
+    x, y = 30, 80
+    w, h = cv2.getTextSize(image_name, cv2.FONT_HERSHEY_SIMPLEX, 3, 4)[0]
+
+    # Vẽ hình chữ nhật nền
+    cv2.rectangle(img, (x, y), (x+w, y+h), (192, 192, 192), -1)
+
+    img = cv2.putText(img, image_name, (x, y + h), cv2.FONT_HERSHEY_SIMPLEX, 3, (255, 0, 0), 4, cv2.LINE_AA)
+    # img = cv2.putText(img, image_name, (30, 80), cv2.FONT_HERSHEY_SIMPLEX, 
+    #                3, (255, 0, 0), 4, cv2.LINE_AA)
 
     ret, jpeg = cv2.imencode('.jpg', img)
     return  Response((b'--frame\r\n'
@@ -478,30 +492,30 @@ def search_image_path():
     pagefile = []
     frame_path = request.args.get('frame_path')
     list_frame_split = frame_path.split("/")
-
+    
     video_dir = list_frame_split[0]
     image_name = list_frame_split[1] + ".jpg"
-    keyframe_dir = video_dir[:-2]
+    keyframe_dir = video_dir.split('_')[0]
+    
 
-    frame_path = join("Database", "KeyFrames"+keyframe_dir, video_dir, image_name)
+    frame_path = join("Database", "Keyframes_"+keyframe_dir, video_dir, image_name)
     frame_path = frame_path.replace("\\","/")
     frame_id = DictKeyframe2Id[frame_path]
     
     imgperindex = 100 
     pagefile.append({'imgpath': frame_path, 'id': int(frame_id)})
 
-    # show  around 30 key image
+    # show  around 40 key image
     total_image_in_video = int(DictImg2Id[keyframe_dir][video_dir]["total_image"])
     number_image_id_in_video = int(DictImg2Id[keyframe_dir][video_dir][image_name])
 
-    first_index_in_video = number_image_id_in_video-40 if number_image_id_in_video-40>0 else 0
-    last_index_in_video = number_image_id_in_video+40 if number_image_id_in_video+40<total_image_in_video else total_image_in_video
-
+    first_index_in_video = number_image_id_in_video-50 if number_image_id_in_video-50>0 else 0
+    last_index_in_video = number_image_id_in_video+50 if number_image_id_in_video+50<total_image_in_video else total_image_in_video
     frame_index = first_index_in_video
     while frame_index < last_index_in_video:
         new_frame_name = DictId2Img[keyframe_dir][video_dir][str(frame_index)]
-        frame_in_video_path =  join("Database", "KeyFrames"+keyframe_dir, video_dir, new_frame_name)
-        frame_in_video_path = frame_in_video_path.replace("\\","/")
+        frame_in_video_path =  join("Database", "Keyframes_"+keyframe_dir, video_dir, new_frame_name)
+        frame_in_video_path =  frame_in_video_path.replace("\\","/")
         if frame_in_video_path in DictKeyframe2Id:
             frame_id_in_video_path = DictKeyframe2Id[frame_in_video_path]
             pagefile.append({'imgpath': frame_in_video_path, 'id': int(frame_id_in_video_path)})
