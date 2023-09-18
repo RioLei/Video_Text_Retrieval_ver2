@@ -87,15 +87,15 @@
           padding-left: 7px;
          
         }
-        .search label{
+        .search .icon-search label{
           position: absolute;
           font-size: 20px;
           top: 2%;
-          left: 68%;
+          left: 62%;
           cursor: pointer;
         }
         .search input{
-          width: 70%;
+          width: 65%;
           height: 40px;
           border: none;
           border-radius: 10px;
@@ -105,7 +105,6 @@
         }
         .group_btn{
          
-          padding-top: 7px;
           left: 79%;
           position: absolute;
         }
@@ -232,6 +231,24 @@
         font-size: 13px;
        }
 
+       .topk{
+        position: absolute;
+        right: 24%;
+        top: 4px;
+       }
+       .topk label{
+        font-size: 14px;
+       }
+       .topk select{
+        width: 60px;
+        height: 40px;
+        border-radius: 10px;
+        border: none;
+        margin: 5px 3px 0 10px;
+        padding-left: 5px;
+        font-size: 13px;
+       }
+
        .num_querry{
         background-color: bdc0c5;
         padding-left: 49px;
@@ -271,7 +288,6 @@
                 display: flex;
                 flex-direction: row;    
                 flex-wrap: wrap;
-                padding: 20px;
                 background-color: #e0e5ec;
                 /* height: 120px;
                 width: 516px; */
@@ -360,6 +376,7 @@
               display: block;
               width: 80%;
               max-width: 70%;
+              transition: all 0.15s;
             }
 
             .close {
@@ -379,40 +396,48 @@
               cursor: pointer;
             }
 
-            #prevButton {
-              background-color: #4dccc6;
-              color: #fff;
-              border: none;
-              position: absolute;
-              top: 55%;
-              right: 75%;
-              font-size: 20px;
-              font-weight: bold;
-              transition: 0.3s;
-              cursor: pointer;
-            }
             
-            /* CSS cho nút "Sau" */
-            #nextButton {
-              background-color: #4dccc6;
-              color: #fff;
-              border: none;
+            /* previous and next image button*/
+            button.next, button.previous {
               position: absolute;
-              top: 55%;
-              left: 75%;
-              font-size: 20px;
-              font-weight: bold;
-              transition: 0.3s;
-              cursor: pointer;
-            }
-
-            #prevButton:hover {
-              background-color: #145552;
-            }
-
-            #nextButton:hover {
-              background-color: #145552;
-            }
+               display: block;
+               width: auto;
+               height: auto;
+               background: #a6a6a6;
+               border-color:#a6a6a6;
+               color: #fff;
+               text-decoration: none;
+               font-weight: 600;
+               font-size: 24px;
+               opacity: 0.7;
+               cursor: pointer;
+             }
+             
+             button.previous {
+               position: absolute;
+               display: block; 
+               top: 55%;
+               left: 20%; 
+             }
+             
+             button.next {
+               position: absolute;
+               right:20%;
+               top: 55%;
+               display: block;  
+             }
+             
+             button:hover {
+               background-color: white;
+               border-color:white;
+               color: black;
+             }
+             
+             button:active {
+               background-color: #0059b3;
+               border-color:#0059b3;
+               color: black;
+             }
 
             /* .container_img_btn img:focus{hoverImg
                 border: 1px solid blue;
@@ -451,11 +476,21 @@
     <div class="container">
         <div class="search_container">
           <div class="search">
-           
-            <label for="">
+          <span class="icon-search">
+            <label for="" >
               <i class="fa fa-search" onclick="search();" aria-hidden="true"></i>
             </label>
+          </span> 
             <input id="text_query" type="text" placeholder="Text query" onkeypress="handleKeyPress(event)">
+            <div class="topk">
+              <label for="mode_topk">TOP K</label>
+            <select name="" id="mode_topk_query">
+              <option value="top200">200</option>
+              <option value="top500">500</option>
+              <option value="top1000">1000</option>
+              <option value="top2000">2000</option>
+            </select>
+
           </div>
           <span class="group_btn">
             <button class="custom-btn btn-13" onclick="search_continues();"><span>Keep</span></button>
@@ -485,7 +520,7 @@
 
           <div class="img_path">
             <label for="">IMAGE PATH</label>
-            <input id="search_image_path" type="text" placeholder="C00_V0130/028539"></input>
+            <input id="search_image_path" type="text" placeholder="L01_V001/000000"></input>
             <button class="custom-btn btn-13" onclick="search_image_path();"><span>Search</span></button>
           </div>
 
@@ -570,78 +605,59 @@
             document.getElementById("div_total_page").innerHTML = "Total: "+data['num_page'].toString()+" page";
         }
         
-        function add_img(div_id_image){
-            let div_img = document.getElementById("div_img");
-            let pagefile_list = data['pagefile'];
-            
-            pagefile_list.forEach((item,index) => {
-                console.log('item: ' ,item)
-                $("#div_img").append(
-                    `<div class= "container_img_btn"  onmouseover="mouseOver(${index})" onmouseout="mouseOut(${index})">
-                        <button class="btn_knn" onClick="go_img_search(${item.id})">IR</button>
-                        <button class="btn_select" onClick="writecsv(${index},'${item.id},${item.imgpath}')">SELECT</button>
-                        <div class="image">
-                          <img class="hoverImg" onclick="go_neightbor_frame_search(${item.id})" alt='${item.id}' src="get_img?fpath=${item.imgpath}">
-                          
-                        </div>
-                        <span id="zoomIcon" onclick="openModal('get_img?fpath=${item.imgpath}')">&#128269;</span>
-                        <div id="myModal" class="modal">
-                          <span class="close" onclick="closeModal()">&times;</span>
-                          <img class="modal-content" id="modalImage">
-
-                          <!-- Nút chuyển đến ảnh trước -->
-                          <button id="prevButton" onclick="showPrevImage(${item.id}, ${item.imgpath})">Trước</button>
-
-                          <!-- Nút chuyển đến ảnh sau -->
-                          <button id="nextButton" onclick="showNextImage(${item.id}, 'get_img?fpath=${item.imgpath}')">Sau</button>
-                        </div>
-                    </div>`
-                )
-            });
-        
-        }
-
-        function showImage(id, imgpath) {
-          let imageElement = document.getElementById("modalImage");
+        function add_img(div_id_image) {
           let div_img = document.getElementById("div_img");
           let pagefile_list = data['pagefile'];
-          imageElement.src = imgpath;
+          let currentIndex = 0; // Thêm biến currentIndex để lưu chỉ số hiện tại
         
-          // Kiểm tra và hiển thị nút chuyển đến ảnh trước
-          let prevButton = document.getElementById("prevButton");
-          if (id === 0) {
-            prevButton.style.display = "none"; // Ẩn nút nếu đang ở ảnh đầu tiên
-          } else {
-            prevButton.style.display = "block"; // Hiển thị nút nếu không phải ảnh đầu tiên
-          }
+          for (var idx = 0; idx < pagefile_list.length; idx++) {
+            console.log("item: ", pagefile_list[idx]);
+            $("#div_img").append(
+              `<div class= "container_img_btn"  onmouseover="mouseOver(${idx})" onmouseout="mouseOut(${idx})">
+                <button class="btn_knn" onClick="go_img_search(${pagefile_list[idx].id})">IR</button>
+                <button class="btn_select" onClick="writecsv(${idx},'${pagefile_list[idx].id},${pagefile_list[idx].imgpath}')">SELECT</button>
+
+                <div class="image">
+                  <img class="hoverImg" onclick="go_neightbor_frame_search(${pagefile_list[idx].id})" alt='${pagefile_list[idx].id}' src="get_img?fpath=${pagefile_list[idx].imgpath}">
+                  <span class="score">score: ${pagefile_list[idx].score}</span>
+                </div>
+                <span id="zoomIcon" onclick="openModal(${idx})">&#128269;</span>
+                <div id="myModal" class="modal">
+                  <span class="close" onclick="closeModal()">&times;</span>
+                  <img class="modal-content" id="modalImage">
         
-          // Kiểm tra và hiển thị nút chuyển đến ảnh sau
-          let nextButton = document.getElementById("nextButton");
-          if (id === pagefile_list.length - 1) {
-            nextButton.style.display = "none"; // Ẩn nút nếu đang ở ảnh cuối cùng
-          } else {
-            nextButton.style.display = "block"; // Hiển thị nút nếu không phải ảnh cuối cùng
+                  <!-- Nút chuyển đến ảnh trước -->
+                  <button class="previous" onclick="preImage(${idx})">&lt;</button>
+        
+                  <!-- Nút chuyển đến ảnh sau -->
+                  <button class="next" onclick="nextImage(${idx})">&gt;</button>
+                </div>
+              </div>`
+            );
+
           }
         }
-        
-        // Hàm chuyển đến ảnh trước
-        function showPrevImage(id, imgpath) {
-          if (id > 0) {
-            id -= 1;
-            showImage(id, imgpath);
-          }
-        }
-        
-        // Hàm chuyển đến ảnh sau
-        function showNextImage(id,imgpath) {
-          let div_img = document.getElementById("div_img");
+
+        function preImage(idx){
+          idx--;
           let pagefile_list = data['pagefile'];
-          if (id < pagefile_list.length - 1) {
-            id += 1;
-            showImage(id, imgpath);
-          }
-        }
+          if (idx < 0)
+          idx = pagefile_list.length - 1;
         
+        console.log("idx: ",idx)
+        openModal(idx)
+        }
+
+        function nextImage(idx){
+          idx++;
+          let pagefile_list = data['pagefile'];
+          if (idx >= pagefile_list.length)
+          idx = 0;
+
+        console.log("idx: ",idx)
+        openModal(idx)
+        }
+
         function mouseOver(id){
             // console.log('type: ' + typeof(btn_knn))
             btn_knn[id].style.display="block";
@@ -653,17 +669,17 @@
             btn_select[id].style.display="none";
         }
         function go_img_search(id){
-            window.open("/imgsearch?imgid="+id);
+            top_k = document.getElementById("mode_topk_query").value;
+            window.open("/imgsearch?imgid="+id+"&topk="+top_k);
         }
 
         // Mở cửa sổ phóng to và hiển thị ảnh
-        function openModal(imgPath) {
+        function openModal(idx) {
           var modal = document.getElementById("myModal");
-          // var img = document.getElementById("myImage");
+          let pagefile_list = data['pagefile'];
           var modalImg = document.getElementById("modalImage");
           modal.style.display = "block";
-          // modalImg.src = img.src;
-          modalImg.src = imgPath;
+          modalImg.src = 'get_img?fpath='+pagefile_list[idx].imgpath;
         }
 
         // Đóng cửa sổ phóng to
@@ -777,8 +793,9 @@
 
         function search(){
             text_query = document.getElementById('text_query').value;
+            top_k = document.getElementById("mode_topk_query").value;
 
-            window.location.href = "/textsearch?textquery="+text_query;
+            window.location.href = "/textsearch?textquery="+text_query+"&topk="+top_k;
             
             document.getElementById('text_query').innerHTML = text_query;
         }
