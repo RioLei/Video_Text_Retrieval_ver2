@@ -138,15 +138,16 @@ class File4Faiss:
     print(f'Saved {des_path}')
     print(f"Number of Index: {count}")
 
-  def load_json_file(json_path: str):
+  def load_json_(self, json_path: str):
     with open(json_path, 'r') as f:
       js = json.loads(f.read())
 
     return {int(k):v for k,v in js.items()}
 
-  def write_bin_file(self, bin_path: str, json_path: str, method='L2', feature_shape=256):
+  def write_bin_file(self, bin_path: str, json_path: str, method='L2', feature_shape=256): 
     count = 0
-    id2img_fps = self.load_json_file(json_path)
+    # print(json_path)
+    id2img_fps = self.load_json_(json_path)
 
     if method in 'L2':
       index = faiss.IndexFlatL2(feature_shape)
@@ -158,13 +159,14 @@ class File4Faiss:
     for _, value in id2img_fps.items():
       image_path = value["image_path"]
       video_name = image_path.split('/')[-2] + '.npy'
+      # print(video_name)
 
       video_id = re.sub('_V\d+', '', image_path.split('/')[-2])
       batch_name = image_path.split('/')[-3].split('_')[-1]
       # clip_name = f"CLIPFeatures_{video_id}_{batch_name}"
-      blip_name = './AIC_BLIP_features'
+      bert_name = './bert_obj_extract_feature'
 
-      feat_path = os.path.join(blip_name, video_name) 
+      feat_path = os.path.join(bert_name, video_name) 
       print(feat_path)
       # exit()
 
@@ -177,28 +179,18 @@ class File4Faiss:
       
       feat = feats[id]
       feat = feat.astype(np.float32).reshape(1,-1)
-      print(feat.shape)
+      # print(feat.shape)
       # exit()
       index.add(feat)
       
       count += 1
     
-    faiss.write_index(index, os.path.join(bin_path, f"faiss_blip_v1_{method}.bin"))
+    # faiss.write_index(index, os.path.join(bin_path, f"faiss_blip_v1_{method}.bin"))
+    # exit()
+    faiss.write_index(index, os.path.join(bin_path, f"faiss_bert_{method}.bin"))
 
-    print(f'Saved {os.path.join(bin_path, f"faiss_{method}.bin")}')
+    print(f'Saved {os.path.join(bin_path, f"faiss_bert_{method}.bin")}')
     print(f"Number of Index: {count}")
-
-import sys
-import os
-
-current_dir = os.path.dirname(os.path.abspath(__file__))
-
-# Xác định đường dẫn tới thư mục LAVIS
-lavis_dir = os.path.join(current_dir, 'LAVIS')
-
-# Thêm đường dẫn tương đối của thư mục LAVIS vào sys.path
-sys.path.append(lavis_dir)
-from lavis.models import load_model_and_preprocess
 
 def load_json_file(json_path: str):
       js = json.load(open(json_path, 'r'))
@@ -207,19 +199,6 @@ def load_json_file(json_path: str):
     
 def load_bin_file(bin_file: str):
     return faiss.read_index(bin_file)
-  
-def image_search_faiss(index, DictImagePath, id_query, k):
-    
-    query_feats = index.reconstruct(id_query).reshape(1,-1)
-
-    scores, idx_image = index.search(query_feats, k=k)
-    idx_image = idx_image.flatten()
-
-    id2img_fps = DictImagePath
-    infos_query = list(map(id2img_fps.get, list(idx_image)))
-    image_paths = [info['image_path'] for info in infos_query]
-    
-    return scores, idx_image, infos_query, image_paths
   
 def write_csv(infos_query, des_path):
     check_files = []
@@ -256,40 +235,7 @@ def write_csv(infos_query, des_path):
       print(f"Save submit file to {des_path}")
     else:
       print('Exceed the allowed number of lines')
-  
-def text_search_faiss(index, DictImagePath, text, k):
-    if detect(text) == 'vi':
-      translater = Translation()
-      text = translater(text)
 
-    __device = "cuda" if torch.cuda.is_available() else "cpu"
-    # self.model, preprocess = clip.load("ViT-B/16", device=self.__device)
-    model, vis_processors_blip, text_processors_blip = load_model_and_preprocess("blip_image_text_matching", 
-                                                                                      "base", 
-                                                                                      device=__device, 
-                                                                                      is_eval=True)
-    
-    ###### TEXT FEATURES EXACTING ######
-    # text = clip.tokenize([text]).to(__device)  
-    # text_features = self.model.encode_text(text).cpu().detach().numpy().astype(np.float32)
-    txt = text_processors_blip["eval"](text)
-    text_features = model.encode_text(txt, __device).cpu().detach().numpy()
-
-    ###### SEARCHING #####
-    scores, idx_image = index.search(text_features, k=k)
-    idx_image = idx_image.flatten()
-
-    ###### GET INFOS KEYFRAMES_ID ######
-    id2img_fps = DictImagePath
-    infos_query = list(map(id2img_fps.get, list(idx_image)))
-    image_paths = [info['image_path'] for info in infos_query]
-    # lst_shot = [info['list_shot_id'] for info in infos_query]
-
-    # print(f"scores: {scores}")
-    # print(f"idx: {idx_image}")
-    # print(f"paths: {image_paths}")
-
-    return scores, idx_image, infos_query, image_paths
   
 def extract_feats_from_bin(bin_file, idx_image):
     index = faiss.read_index(bin_file)
@@ -322,13 +268,25 @@ def mapping_index(a, b):
     for index in b:
         mapped_array.append(a[index])
     return mapped_array
-  
+
+import sys
+import os
+
+current_dir = os.path.dirname(os.path.abspath(__file__))
+
+# Xác định đường dẫn tới thư mục LAVIS
+lavis_dir = os.path.join(current_dir, 'LAVIS')
+
+# Thêm đường dẫn tương đối của thư mục LAVIS vào sys.path
+sys.path.append(lavis_dir)
+from lavis.models import load_model_and_preprocess
+
+# create_file = File4Faiss('Database')
+# create_file.write_bin_file(bin_path='./dict/', json_path='./dict/keyframes_id.json', method='cosine', feature_shape=768) # Bert model
 # def main():
   
-  #### CREATE JSON AND BIN FILES #####
-  # create_file = File4Faiss('Database')
-  # create_file.write_json_file(json_path='./', shot_frames_path='./scenes_txt') # --> create keyframea_id.json
-  # create_file.write_bin_file(bin_path='./dict/', json_path='./dict/keyframes_id.json', method='cosine')
+  ### CREATE JSON AND BIN FILES #####
+  
 
   # ##### TESTING #####
   # bin_file='dict/faiss_cosine.bin'
