@@ -1,111 +1,138 @@
-# from glob import glob
-# import os 
-# import json 
-
-# def create_dict_image_path(data_dir):
-#     dict_json_path = {}
-#     for keyframe_dir in sorted(os.listdir(data_dir)):
-#         keyframe_dir_path = os.path.join(data_dir, keyframe_dir)
-#         dict_json_path[keyframe_dir[-7:]] = {}
-
-#         for subdir in sorted(os.listdir(keyframe_dir_path)):
-#             if subdir not in dict_json_path:
-#                 dict_json_path[keyframe_dir[-7:]][subdir] = {}
-
-#             subdir_path = os.path.join(keyframe_dir_path, subdir)
-#             # print(subdir_path)
-#             list_image_path = glob(os.path.join(subdir_path, "*.jpg"))
-#             list_image_path.sort()
-#             # print(list_image_path)
-
-#             for index, image_path in enumerate(list_image_path):
-#                 image_name = image_path.split("'\'")[-1]
-#                 image_name = image_name.replace("\\","/")
-#                 print(image_name)
-#                 dict_json_path[keyframe_dir[-7:]][subdir][int(index)] = image_name # id2img
-#                 # dict_json_path[keyframe_dir[-7:]][subdir][image_name] = index # img2id 
-            
-#             dict_json_path[keyframe_dir[-7:]][subdir]["total_image"] = len(list_image_path)
-
-# path = 'Database/'
-# create_dict_image_path(path)
-#     # with open('dict_image_path_id2img.json', 'w') as f:
-#     #     json.dump(dict_json_path, f)
-
-#     # with open('dict_image_path_img2id.json', 'w') as f:
-#     #     json.dump(dict_json_path, f)
-
 import os
+from glob import glob
+import pandas as pd
+from tqdm import tqdm
 import json
+import pandas as pd
+from sentence_transformers import SentenceTransformer, util
+import numpy as np
+import torch
+import argparse
 
-def get_unique_detection_class_entities(folder_path):
+# def save_to_csv(data_array, output_file):
+#     # Create an empty DataFrame
+#     df = pd.DataFrame()
+
+#     # Iterate through each dictionary in the data array
+#     for item in data_array:
+#         video_id = item['video_id']
+#         tags = item['tags']
+
+#         # Create a dictionary for each row
+#         row_data = {'video_id': video_id}
+#         for tag in tags:
+#             row_data[tag] = int(1)
+
+#         # Append the row to the DataFrame
+#         df = df.append(row_data, ignore_index=True)
+
+#     # Fill missing values with 0
+#     df = df.fillna(int(0))
+    
+#     int_columns = df.columns.drop('video_id')
+#     df[int_columns] = df[int_columns].astype(int)
+
+#     # Save the DataFrame to a CSV file
+#     df.to_csv(output_file, index=False)
+
+
+def get_unique_detection_class_entities(root_directory):
     re = []
+    
     # Loop through each file in the folder
-    for root, dirs, files in os.walk(folder_path):
-        for file_name in files:
+    for folder in os.listdir(root_directory):
+        file_retrival = {}
+        file_retrival[folder] = []
+        # print(folder)
+        folder_path = root_directory+'/'+ folder
+        # exit()
+        for file in os.listdir(folder_path):
+            count_dict = {}
+            file_path = folder_path+'/'+ file
+            # print(file_path)
             unique_entities = set()
-            file_retrival = {}
-            file_path = os.path.join(root, file_name)
-            dir_name = root.split('/')[-1]
-            # print(dir_name)
             
-            # Check if the file is a JSON file
-            if file_name.endswith('.json'):
-                # print(file_name)
-                # exit()
-                # Load the JSON data
+            if file_path.endswith('.json'):
                 with open(file_path, 'r') as json_file:
                     try:
                         data = json.load(json_file)
-                        name = dir_name+'/'+file_name.split('.')[0]
+                        name = file_path.split('/')[-1].split('.')[0] + '.jpg'  # L01_V001/000000
+                        # print(name)
+                        # exit()
 
                         # Get the detection_class_entities from the JSON data
                         entities = data.get('detection_class_entities', [])
-                        
+                            
                         # Add the entities to the set
                         unique_entities.update(entities)
                         # print(type(unique_entities))
+                        # Count the occurrences of each entity
+                        for entity in entities:
+                            count_dict[entity] = count_dict.get(entity, 0) + 1
+                        # print(count_dict)
+                        temp = []
+                        for item in unique_entities:
+                            temp.append(f"{count_dict[item]} {item}")
+                        # print(temp)
+                        # exit()
+                        file_data = {'keyframe_id': name, 'tags': ', '.join(list(temp))}
                         
-                        file_retrival['video_path'] = name
-                        file_retrival['tags'] = list(unique_entities)
-                        re.append(file_retrival)
+                        file_retrival[folder].append(file_data)
+                        # file_retrival[folder]['tags'] 
+        
                     except json.JSONDecodeError:
                         print(f"Error decoding JSON file: {file_path}")
+        re.append(file_retrival)
 
     return re
 
-import pandas as pd
-
-def save_to_csv(data_array, output_file):
-    # Create an empty DataFrame
-    df = pd.DataFrame()
-
-    # Iterate through each dictionary in the data array
-    for item in data_array:
-        video_id = item['video_id']
-        tags = item['tags']
-
-        # Create a dictionary for each row
-        row_data = {'video_id': video_id}
-        for tag in tags:
-            row_data[tag] = int(1)
-
-        # Append the row to the DataFrame
-        df = df.append(row_data, ignore_index=True)
-
-    # Fill missing values with 0
-    df = df.fillna(int(0))
+def extract_features_bert(model, root_dir, feature_dest_path):
+    i = 0
     
-    int_columns = df.columns.drop('video_id')
-    df[int_columns] = df[int_columns].astype(int)
+    re = get_unique_detection_class_entities(root_dir)
+    for _, dirs, _ in os.walk(root_dir):
+        if dirs != []:
+            break
+    # print(dirs) # list folders, Ex: ['L01_V001', 'L02_V001',....]
+    for item in re: # list item for each folder 
+        list_data = item[dirs[i]] # contain list keyframe and tags. Ex: [{000000.jpg, tags}, {},...] 
+        txt_emb = []
+        # For each folder
+        for data in list_data: # {000000.jpg, tags} 
+                        
+            keyframe_id = data['keyframe_id'] # "000000.jpg"
+            # print(dirs[i] + '/' + keyframe_id)
+            tags = data['tags'] # tags of the keyframe id "000000.jpg"
+            # print(tags)
+            text_features = model.encode(tags)
+            txt_emb.append(text_features) # keyframe 
+            txt_emb.append(text_features) # frame lan can
+            txt_emb.append(text_features) # frame lan can
+        # exit()
+        print("feature_dest_path: " + feature_dest_path + '/' + dirs[i] + '.npy')
+        np.save(feature_dest_path + '/' + dirs[i] + '.npy', txt_emb)
+        print("Save done!\n")
+        i += 1
 
-    # Save the DataFrame to a CSV file
-    df.to_csv(output_file, index=False)
-    
-    
-    
-folder_path = './Dataset_2023/objects/L02_V018'
-output_file = './Dataset_2023/object.csv'
-re = get_unique_detection_class_entities(folder_path)
+    return txt_emb
 
-save_to_csv(re, output_file)
+if __name__=="__main__":
+
+    parser = argparse.ArgumentParser(description='Process a video and specify the destination folder.')
+
+    parser.add_argument('--object_folder', type=str, default="./objects", 
+                        help='Path to the object file')
+
+    parser.add_argument('--feature_dest_path', type=str, default='./bert_obj_extract_feature', 
+                        help='Path to the destination folder')
+
+    args = parser.parse_args()
+    
+    print("start training")
+    
+    folder_path = './objects'
+    feature_dest_path = './bert_obj_extract_feature'
+    model = SentenceTransformer('all-distilroberta-v1')
+
+    txt_emb = extract_features_bert(model, folder_path, feature_dest_path)
+    
