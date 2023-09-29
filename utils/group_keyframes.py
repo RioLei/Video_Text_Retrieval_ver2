@@ -14,3 +14,17 @@ def rearrangeDict(dict):
         grouped_data[keyframe_dir]["list_frame"].append(name)
     output_dict = list(grouped_data.values())
     return output_dict
+
+def deleteFrames(ids, dict, text_out):
+    for i in ids:
+        for j in dict:
+            if j['keyframe_dir'] == i:
+                dict.remove(j)
+    data_str = ', '.join(map(str, dict))
+    with open(text_out, 'w') as file:
+        file.write(dict)
+    return()
+
+# ids = ['L01_V001', 'L02_V001',...]
+# dict = input_dict
+# text_out = output txt file
