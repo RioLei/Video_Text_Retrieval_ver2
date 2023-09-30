@@ -4,16 +4,29 @@ def extractKeyframes(input_string):
     match = re.search(pattern, input_string)
     return match.group(2)
 
-def rearrangeDict(dict):
-    grouped_data = {}
-    for name in dict:
-        keyframe_dir = extractKeyframes(name['imgpath'])
-        list_frame = name
-        if keyframe_dir not in grouped_data:
-            grouped_data[keyframe_dir] = {"keyframe_dir": keyframe_dir, "list_frame": []}
-        grouped_data[keyframe_dir]["list_frame"].append(name)
-    output_dict = list(grouped_data.values())
-    return output_dict
+# def rearrangeDict(dict):
+#     grouped_data = {}
+#     for name in dict:
+#         keyframe_dir = extractKeyframes(name['imgpath'])
+#         list_frame = name
+#         if keyframe_dir not in grouped_data:
+#             grouped_data[keyframe_dir] = {"keyframe_dir": keyframe_dir, "list_frame": []}
+#         grouped_data[keyframe_dir]["list_frame"].append(name)
+#     output_dict = list(grouped_data.values())
+#     return output_dict
+
+def convertArray(array):
+    converted_array = []
+    for item in array:
+        imgpath = item['imgpath']
+        video_id = imgpath.split('/')[-2]
+        new_item = {'video_id': video_id, 'list_frame': [item]}
+        existing_item = next((x for x in converted_array if x['video_id'] == video_id), None)
+        if existing_item:
+            existing_item['list_frame'].append(item)
+        else:
+            converted_array.append(new_item)
+    return converted_array
 
 def deleteFrames(ids, dict, text_out):
     for i in ids:
