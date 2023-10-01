@@ -289,14 +289,14 @@ def search_tags(csv_filename, search_string):
 import sys
 import os
 
-current_dir = os.path.dirname(os.path.abspath(__file__))
+# current_dir = os.path.dirname(os.path.abspath(__file__))
 
-# Xác định đường dẫn tới thư mục LAVIS
-lavis_dir = os.path.join(current_dir, 'LAVIS')
+# # Xác định đường dẫn tới thư mục LAVIS
+# lavis_dir = os.path.join(current_dir, 'LAVIS')
 
-# Thêm đường dẫn tương đối của thư mục LAVIS vào sys.path
-sys.path.append(lavis_dir)
-from lavis.models import load_model_and_preprocess
+# # Thêm đường dẫn tương đối của thư mục LAVIS vào sys.path
+# sys.path.append(lavis_dir)
+# from lavis.models import load_model_and_preprocess
 
 # create_file = File4Faiss('Database')
 # create_file.write_bin_file(bin_path='./dict/', json_path='./dict/keyframes_id.json', method='cosine', feature_shape=768) # Bert model

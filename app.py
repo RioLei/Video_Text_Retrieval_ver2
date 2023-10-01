@@ -22,7 +22,7 @@ from utils.group_keyframes import convertArray
 current_dir = os.path.dirname(os.path.abspath(__file__))
 
 # Xác định đường dẫn tới thư mục LAVIS
-lavis_dir = os.path.join(current_dir, 'LAVIS')
+lavis_dir = os.path.join(current_dir, 'utils\LAVIS')
 
 # Thêm đường dẫn tương đối của thư mục LAVIS vào sys.path
 sys.path.append(lavis_dir)
