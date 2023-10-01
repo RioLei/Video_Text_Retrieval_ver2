@@ -10,7 +10,8 @@ from pathlib import Path
 from posixpath import join
 import faiss
 from langdetect import detect
-from utils.faiss_processing import write_csv, extract_feats_from_bin, save_feats_to_bin,load_json_file,load_bin_file,mapping_index, search_tags
+from utils.faiss_processing import write_csv, extract_feats_from_bin, save_feats_to_bin,\
+    load_json_file,load_bin_file,mapping_index, search_tags, get_all_ids
 from utils.submit import write_csv, show_csv
 from sentence_transformers import SentenceTransformer, util
 from utils.ocr_processing import fill_ocr_results, fill_ocr_df
@@ -22,7 +23,7 @@ from utils.group_keyframes import convertArray
 current_dir = os.path.dirname(os.path.abspath(__file__))
 
 # Xác định đường dẫn tới thư mục LAVIS
-lavis_dir = os.path.join(current_dir, 'utils\LAVIS')
+lavis_dir = os.path.join(current_dir, 'LAVIS')
 
 # Thêm đường dẫn tương đối của thư mục LAVIS vào sys.path
 sys.path.append(lavis_dir)
@@ -39,7 +40,7 @@ json_id2img_path = 'dict/dict_image_path_id2img.json'
 json_img2id_path = 'dict/dict_image_path_img2id.json'
 json_keyframe2id = 'dict/keyframe_path2id.json'
 json_keyframe2path = 'dict/keyframe_id2path.json'
-file_path = 'search_continues/list_index.txt'
+file_path = 'search_continues/list_index_search_continues.txt'
 
 # with open("dict/info_ocr.txt", "r", encoding="utf8") as fi:
 #     ListOcrResults = list(map(lambda x: x.replace("\n",""), fi.readlines()))
@@ -71,13 +72,7 @@ DictImagePath = load_json_file(json_path)
 @app.route('/thumbnailimg')
 def thumbnailimg():
     print("load_iddoc")
-
-    # global new_bin_file
-    # bin_file = new_bin_file if new_bin_file else 'dict/faiss_blip_v1_cosine.bin'
-    # CosineFaiss = MyFaiss('Database', bin_file, json_path)
-    # DictImagePath = load_json_file(json_path)
-    # LenDictPath = len(load_json_file(json_path))
-    
+        
     # remove old file submit 
     submit_path = join("submission", "submit.csv")
     old_submit_path = Path(submit_path)
@@ -90,7 +85,7 @@ def thumbnailimg():
     if old_temp_path.is_file():
         os.remove(old_temp_path)
     
-    temp_txt_path = join("search_continues", "list_index.txt")
+    temp_txt_path = join("search_continues", "list_index_search_continues.txt")
     old_temp_path = Path(temp_txt_path)
     if old_temp_path.is_file():
         os.remove(old_temp_path)
@@ -105,7 +100,6 @@ def thumbnailimg():
 
     imgperindex = 100
     
-    # imgpath = request.args.get('imgpath') + "/"
     pagefile = []
 
     page_filelist = []
@@ -128,10 +122,8 @@ def thumbnailimg():
         while tmp_index < last_index:
             page_filelist.append(DictImagePath[tmp_index]["image_path"])
             list_idx.append(tmp_index)
-            tmp_index += 1    
-    # print(page_filelist)
-    # print(list_idx)
-    # exit()
+            tmp_index += 1   
+            
     for imgpath, id in zip(page_filelist, list_idx):
         pagefile.append({'imgpath': imgpath, 'id': id})
 
@@ -141,8 +133,50 @@ def thumbnailimg():
     
     return render_template('home.html', data=data)
 
+###################### SEARCH IMAGE PATH #####################
+@app.route('/search_image_path')
+def search_image_path():
+    pagefile = []
+    frame_path = request.args.get('frame_path')
+    list_frame_split = frame_path.split("/")
+    
+    video_dir = list_frame_split[0]
+    image_name = list_frame_split[1] + ".jpg"
+    keyframe_dir = video_dir.split('_')[0]
+    
+
+    frame_path = join("Database", "Keyframes_"+keyframe_dir, video_dir, image_name)
+    frame_path = frame_path.replace("\\","/")
+    frame_id = DictKeyframe2Id[frame_path]
+    
+    imgperindex = 100 
+    pagefile.append({'imgpath': frame_path, 'id': int(frame_id)})
+
+    # show  around 40 key image
+    total_image_in_video = int(DictImg2Id[keyframe_dir][video_dir]["total_image"])
+    number_image_id_in_video = int(DictImg2Id[keyframe_dir][video_dir][image_name])
+
+    first_index_in_video = number_image_id_in_video-50 if number_image_id_in_video-50>0 else 0
+    last_index_in_video = number_image_id_in_video+50 if number_image_id_in_video+50<total_image_in_video else total_image_in_video
+    frame_index = first_index_in_video
+    while frame_index < last_index_in_video:
+        new_frame_name = DictId2Img[keyframe_dir][video_dir][str(frame_index)]
+        frame_in_video_path =  join("Database", "Keyframes_"+keyframe_dir, video_dir, new_frame_name)
+        frame_in_video_path =  frame_in_video_path.replace("\\","/")
+        if frame_in_video_path in DictKeyframe2Id:
+            frame_id_in_video_path = DictKeyframe2Id[frame_in_video_path]
+            pagefile.append({'imgpath': frame_in_video_path, 'id': int(frame_id_in_video_path)})
+
+        frame_index += 1
+    pagefile_new = convertArray(pagefile)
+
+    data = {'num_page': int(LenDictPath/imgperindex)+1, 'pagefile': pagefile_new}
+    
+    return render_template('home.html', data=data)
+
 ####################### IMAGE SEARCH - SEARCH TO KEYFRAME ID ######################
 import json
+
 @app.route('/imgsearch')
 def image_search():
     print("image search")
@@ -168,11 +202,11 @@ def image_search():
     scores = scores.flatten()
     
     # Check search continues
-    temp_txt_path = join("search_continues", "list_index.txt")
+    temp_txt_path = join("search_continues", "list_index_search_continues.txt")
     txt_path = Path(temp_txt_path)
     if txt_path.is_file(): 
         # Đọc dữ liệu từ tệp tin
-        with open('search_continues/list_index.txt', 'r') as file:
+        with open('search_continues/list_index_search_continues.txt', 'r') as file:
             data_str = file.read()
         data_list = data_str.split()
         data_array = [int(num) for num in data_list]
@@ -182,9 +216,7 @@ def image_search():
     infos_query = list(map(id2img_fps.get, list(idx_image)))
     image_paths = [info['image_path'] for info in infos_query]
     scores = np.array(scores, dtype=np.float32).tolist()
-    # print(image_paths)
     
-    # _, list_ids, _, list_image_paths = image_search_faiss(index, DictImagePath,id_query, k=200)
     print("searching.......")
     imgperindex = 100 
 
@@ -247,11 +279,11 @@ def text_search():
     scores = scores.flatten()
     
     # Check search continues
-    temp_txt_path = join("search_continues", "list_index.txt")
+    temp_txt_path = join("search_continues", "list_index_search_continues.txt")
     txt_path = Path(temp_txt_path)
     if txt_path.is_file(): 
         # Đọc dữ liệu từ tệp tin
-        with open('search_continues/list_index.txt', 'r') as file:
+        with open('search_continues/list_index_search_continues.txt', 'r') as file:
             data_str = file.read()
         data_list = data_str.split()
         data_array = [int(num) for num in data_list]
@@ -275,29 +307,30 @@ def text_search():
     return render_template('index_thumb1.html', data=data)
 
 ####################### CONTINUES SEARCHINGGGG ####################
-@app.route('/searchcontinues', methods=['POST'])
+@app.route('/searchcontinues')
 def search_continues():
-    # pagefile = request.files['pagefile']
     data = request.get_json()
     # print(data)
     pagefile = data['pagelist']
-    print(pagefile)
-    ids = []
-    for item in pagefile:
-        ids.append(int(item['id']))
+    # print(pagefile)
+    # list_frames = pagefile['list_frame']
+    # video_id = pagefile['video_id']
+    
+    # Sử dụng hàm để lấy danh sách tất cả các ID
+    ids = get_all_ids(pagefile)
+    print(ids)
     
     new_bin_file = './search_continues/temp_faiss.bin'
     # print(ids)
     # exit()
     bin_file = 'dict/faiss_blip_v1_cosine.bin'
     ids, feats = extract_feats_from_bin(bin_file, ids)
+    
+    # savefile sub bin and idx of frames
     save_feats_to_bin(ids, feats, new_bin_file)
     print('Saved new bin file')
-    # imgperindex = 100
-    # pagefile_new = convertArray(pagefile)
-    # data = {'num_page': int(LenDictPath/imgperindex)+1, 'pagefile': pagefile_new}
-    # return render_template('index_thumb1.html', data=data)
 
+######################### GET FRAMES NEIGHBOR ##############################
 @app.route('/neighborsearch')
 def neightbor_search():
     print('neightbor frame search')
@@ -339,7 +372,7 @@ def neightbor_search():
     
     return render_template('home.html', data=data)
 
-    
+####################### SEARCH FOR TAGS - SEARCH OBJ #####################    
 @app.route('/search_for_tags')
 def search_for_tags():
     print("search for tags...")
@@ -358,46 +391,29 @@ def search_for_tags():
     pagefile = []
     text_query = request.args.get('text_for_tags')
 
-    csv_file = 'dict/objs_final.csv'
+    csv_file = 'dict/object_final.csv'
     text_query = str(text_query)
     print(text_query)
     
     idx_images, image_paths = search_tags(csv_file, text_query)
     # print(idx_image)
-    # idx_image = idx_image.flatten()
-    
-    # idx_image = []
-
-    # for item in image_paths:
-    #     for key, value in DictKeyframe2Id.items():
-    #         if item == key:
-    #             idx_image.append(value)
-    #             break
 
     imgperindex = 100 
 
     # scores = scores.flatten()
     
     # Check search continues
-    temp_txt_path = join("search_continues", "list_index.txt")
+    temp_txt_path = join("search_continues", "list_index_search_continues.txt")
     txt_path = Path(temp_txt_path)
     if txt_path.is_file(): 
         # Đọc dữ liệu từ tệp tin
-        with open('search_continues/list_index.txt', 'r') as file:
+        with open('search_continues/list_index_search_continues.txt', 'r') as file:
             data_str = file.read()
         data_list = data_str.split()
         data_array = [int(num) for num in data_list]
         idx_images = mapping_index(data_array, idx_images)
-            
-    ###### GET INFOS KEYFRAMES_ID ######
-    # id2img_fps = DictImagePath
-    # infos_query = list(map(id2img_fps.get, list(idx_image)))
-    # image_paths = [info['image_path'] for info in infos_query]
-    # print(image_paths)
     
     imgperindex = 100 
-    # scores = np.array(scores, dtype=np.float32).tolist()
-    # print(scores)
 
     for imgpath, id in zip(image_paths, idx_images):
         pagefile.append({'imgpath': imgpath, 'id': int(id)})
@@ -407,6 +423,116 @@ def search_for_tags():
     data = {'num_page': int(LenDictPath/imgperindex)+1, 'pagefile': pagefile_new}
     
     return render_template('index_thumb1.html', data=data)
+
+########################## WRITE CSV #########################################
+@app.route('/writecsv')
+def submit():
+    print("writecsv")
+    info_key = request.args.get('info_key')
+    mode_write_csv = request.args.get('mode')
+    print("info_key", info_key)
+    print("mode: ", mode_write_csv)
+    info_key = info_key.split(",")
+
+    id_query = int(info_key[0])
+    selected_image = info_key[1]
+    
+    number_line, list_frame_id = write_csv(DictImagePath, mode_write_csv, selected_image, id_query, "submission")
+    
+    str_fname = ",".join(list_frame_id[:])
+    # str_fname += " #### number csv line: {}".format(number_line)
+
+    info = {
+        "str_fname": str_fname,
+        "number_line": str(number_line)
+    }
+
+    return jsonify(info)
+
+################# GET IMAGES FOR DISPLAY #################
+@app.route('/get_img')
+def get_img():
+    # print("get_img")
+    fpath = request.args.get('fpath')
+    # fpath = fpath
+    list_image_name = fpath.split("/")
+    # image_name = "/".join(list_image_name[-2:])
+    image_name = list_image_name[-1].split('.')[0]
+
+    if os.path.exists(fpath):
+        img = cv2.imread(fpath)
+    else:
+        print("load 404.jph")
+        img = cv2.imread("./static/images/404.jpg")
+
+    img = cv2.resize(img, (1280, 720))
+
+    # Tọa độ và kích thước hình chữ nhật nền
+    x, y = 0, 0  # Tọa độ góc trái trên cùng của hình chữ nhật
+    w, h = cv2.getTextSize(image_name, cv2.FONT_HERSHEY_SIMPLEX, 3, 6)[0]
+    padding = 10  # Khoảng cách giữa văn bản và hình chữ nhật
+
+    # Vẽ hình chữ nhật nền
+    cv2.rectangle(img, (x, y), (x + w + padding, y + h + padding), (217, 217, 217), -1)  # Màu nền #D9D9D9
+
+    # Vẽ văn bản
+    cv2.putText(img, image_name, (x + padding, y + h + padding), cv2.FONT_HERSHEY_SIMPLEX, 3, (0, 0, 0), 5, cv2.LINE_AA)  # Màu chữ đen
+
+    ret, jpeg = cv2.imencode('.jpg', img)
+    return Response((b'--frame\r\n'
+                    b'Content-Type: image/jpeg\r\n\r\n' + jpeg.tobytes() + b'\r\n\r\n'),
+                    mimetype='multipart/x-mixed-replace; boundary=frame')
+
+########################## DOWLOAD SUBMIT FILE  #########################
+@app.route('/dowload_submit_file', methods=['GET'])
+def dowload_submit_file():
+    print("dowload_submit_file")
+    filename = request.args.get('filename')
+    fpath = join("submission", filename)
+    print("fpath", fpath)
+
+    return send_file(fpath, as_attachment=True)
+
+########################## GET FIRST ROW #########################
+@app.route('/get_first_row')
+def getFirstRowOfCsv():
+    csv_path = "submission/submit.csv"
+    result = {
+        'video_id':"None",
+        'frame_id':"None"
+    }
+    if os.path.exists(csv_path):
+        lst_frame = show_csv(csv_path)[0]
+        video_id, frame_id = lst_frame.split("/")[-2:]
+        result["video_id"] = video_id
+        result["frame_id"] = int(frame_id[:-4])
+
+    return result
+
+################# VISUALIZE FRAME SELECTED #################################
+@app.route('/visualize')
+def visualize():
+    number_of_query = int(request.args.get('number_of_query'))
+    csv_path = join("submission", "query-{}.csv".format(number_of_query))
+
+    query_path = join("query","query-{}.txt".format(number_of_query))
+    if os.path.exists(query_path):
+        with open(query_path, "rb") as fi:
+            query_content = fi.read().decode("utf-8").replace(" ","_")
+
+    pagefile = []
+    lst_frame = show_csv(csv_path)
+    for frame_path in lst_frame:
+        frame_id = DictKeyframe2Id[frame_path]
+        pagefile.append({'imgpath': frame_path, 'id': int(frame_id)})
+    pagefile_new = convertArray(pagefile)
+    if query_content is not None:
+        data = {'num_page': 1, 'pagefile': pagefile_new, 'query': query_content}
+    else:
+        data = {'num_page': 1, 'pagefile': pagefile_new}
+
+    return render_template('index_thumb1.html', data=data)
+
 
 # @app.route('/ocrfilter')
 # def ocrfilter():
@@ -442,149 +568,6 @@ def search_for_tags():
     
 #     return render_template('index_thumb.html', data=data)
 
-@app.route('/writecsv')
-def submit():
-    print("writecsv")
-    info_key = request.args.get('info_key')
-    mode_write_csv = request.args.get('mode')
-    print("info_key", info_key)
-    print("mode: ", mode_write_csv)
-    info_key = info_key.split(",")
-
-    id_query = int(info_key[0])
-    selected_image = info_key[1]
-    
-    number_line, list_frame_id = write_csv(DictImagePath, mode_write_csv, selected_image, id_query, "submission")
-    
-    str_fname = ",".join(list_frame_id[:])
-    # str_fname += " #### number csv line: {}".format(number_line)
-
-    info = {
-        "str_fname": str_fname,
-        "number_line": str(number_line)
-    }
-
-    return jsonify(info)
-
-@app.route('/get_img')
-def get_img():
-    # print("get_img")
-    fpath = request.args.get('fpath')
-    # fpath = fpath
-    list_image_name = fpath.split("/")
-    # image_name = "/".join(list_image_name[-2:])
-    image_name = list_image_name[-1].split('.')[0]
-
-    if os.path.exists(fpath):
-        img = cv2.imread(fpath)
-    else:
-        print("load 404.jph")
-        img = cv2.imread("./static/images/404.jpg")
-
-    img = cv2.resize(img, (1280, 720))
-
-    # Tọa độ và kích thước hình chữ nhật nền
-    x, y = 0, 0  # Tọa độ góc trái trên cùng của hình chữ nhật
-    w, h = cv2.getTextSize(image_name, cv2.FONT_HERSHEY_SIMPLEX, 3, 6)[0]
-    padding = 10  # Khoảng cách giữa văn bản và hình chữ nhật
-
-    # Vẽ hình chữ nhật nền
-    cv2.rectangle(img, (x, y), (x + w + padding, y + h + padding), (217, 217, 217), -1)  # Màu nền #D9D9D9
-
-    # Vẽ văn bản
-    cv2.putText(img, image_name, (x + padding, y + h + padding), cv2.FONT_HERSHEY_SIMPLEX, 3, (0, 0, 0), 5, cv2.LINE_AA)  # Màu chữ đen
-
-    ret, jpeg = cv2.imencode('.jpg', img)
-    return Response((b'--frame\r\n'
-                    b'Content-Type: image/jpeg\r\n\r\n' + jpeg.tobytes() + b'\r\n\r\n'),
-                    mimetype='multipart/x-mixed-replace; boundary=frame')
-
-@app.route('/dowload_submit_file', methods=['GET'])
-def dowload_submit_file():
-    print("dowload_submit_file")
-    filename = request.args.get('filename')
-    fpath = join("submission", filename)
-    print("fpath", fpath)
-
-    return send_file(fpath, as_attachment=True)
-
-@app.route('/get_first_row')
-def getFirstRowOfCsv():
-    csv_path = "submission/submit.csv"
-    result = {
-        'video_id':"None",
-        'frame_id':"None"
-    }
-    if os.path.exists(csv_path):
-        lst_frame = show_csv(csv_path)[0]
-        video_id, frame_id = lst_frame.split("/")[-2:]
-        result["video_id"] = video_id
-        result["frame_id"] = int(frame_id[:-4])
-
-    return result
-
-@app.route('/visualize')
-def visualize():
-    number_of_query = int(request.args.get('number_of_query'))
-    csv_path = join("submission", "query-{}.csv".format(number_of_query))
-
-    query_path = join("query","query-{}.txt".format(number_of_query))
-    if os.path.exists(query_path):
-        with open(query_path, "rb") as fi:
-            query_content = fi.read().decode("utf-8").replace(" ","_")
-
-    pagefile = []
-    lst_frame = show_csv(csv_path)
-    for frame_path in lst_frame:
-        frame_id = DictKeyframe2Id[frame_path]
-        pagefile.append({'imgpath': frame_path, 'id': int(frame_id)})
-    pagefile_new = convertArray(pagefile)
-    if query_content is not None:
-        data = {'num_page': 1, 'pagefile': pagefile_new, 'query': query_content}
-    else:
-        data = {'num_page': 1, 'pagefile': pagefile_new}
-
-    return render_template('index_thumb1.html', data=data)
-
-@app.route('/search_image_path')
-def search_image_path():
-    pagefile = []
-    frame_path = request.args.get('frame_path')
-    list_frame_split = frame_path.split("/")
-    
-    video_dir = list_frame_split[0]
-    image_name = list_frame_split[1] + ".jpg"
-    keyframe_dir = video_dir.split('_')[0]
-    
-
-    frame_path = join("Database", "Keyframes_"+keyframe_dir, video_dir, image_name)
-    frame_path = frame_path.replace("\\","/")
-    frame_id = DictKeyframe2Id[frame_path]
-    
-    imgperindex = 100 
-    pagefile.append({'imgpath': frame_path, 'id': int(frame_id)})
-
-    # show  around 40 key image
-    total_image_in_video = int(DictImg2Id[keyframe_dir][video_dir]["total_image"])
-    number_image_id_in_video = int(DictImg2Id[keyframe_dir][video_dir][image_name])
-
-    first_index_in_video = number_image_id_in_video-50 if number_image_id_in_video-50>0 else 0
-    last_index_in_video = number_image_id_in_video+50 if number_image_id_in_video+50<total_image_in_video else total_image_in_video
-    frame_index = first_index_in_video
-    while frame_index < last_index_in_video:
-        new_frame_name = DictId2Img[keyframe_dir][video_dir][str(frame_index)]
-        frame_in_video_path =  join("Database", "Keyframes_"+keyframe_dir, video_dir, new_frame_name)
-        frame_in_video_path =  frame_in_video_path.replace("\\","/")
-        if frame_in_video_path in DictKeyframe2Id:
-            frame_id_in_video_path = DictKeyframe2Id[frame_in_video_path]
-            pagefile.append({'imgpath': frame_in_video_path, 'id': int(frame_id_in_video_path)})
-
-        frame_index += 1
-    pagefile_new = convertArray(pagefile)
-
-    data = {'num_page': int(LenDictPath/imgperindex)+1, 'pagefile': pagefile_new}
-    
-    return render_template('home.html', data=data)
 
 @app.route('/', methods=['GET', 'POST'])
 def index():

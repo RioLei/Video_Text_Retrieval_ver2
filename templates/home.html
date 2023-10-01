@@ -418,6 +418,31 @@
               object-fit: cover;
             }
 
+            input[type="checkbox"] {
+              display:none;
+          }
+          
+            input[type="checkbox"] + label {
+                color:#f2f2f2;
+                position: absolute;
+                top: 37%;
+                right: 10%;
+            }
+            
+            input[type="checkbox"] + label span {
+                display:inline-block;
+                width:19px;
+                height:19px;
+                margin:-2px 10px 0 0;
+                vertical-align:middle;
+                background:url(https://s3-us-west-2.amazonaws.com/s.cdpn.io/210284/check_radio_sheet.png) left top no-repeat;
+                cursor:pointer;
+            }
+            
+            input[type="checkbox"]:checked + label span {
+                background:url(https://s3-us-west-2.amazonaws.com/s.cdpn.io/210284/check_radio_sheet.png) -19px top no-repeat;
+            }
+
             .image{ 
                 height: 200px;
                 object-fit: cover;
@@ -650,7 +675,7 @@
 
           <div class="search_for_tags">
             <!--<label for="">Search for tags</label> -->
-             <input id="text_for_tags" type="text" placeholder="2people, 1car, 4motorbikes"></input>
+             <input id="text_for_tags" type="text" placeholder="1 Woman, 2 Skyscraper"></input>
             <button class="custom-btn btn-5" onclick="search_for_tags();"><span>Search</span></button>
         </div>
 
@@ -788,7 +813,10 @@
                     display:block;
                     font-size: xx-large;
                     color: black;
-                        ">${video_id}</span>`
+                        ">${video_id}</span>
+                <input type="checkbox" id="c1" name="cc" />
+                <label for="c1"><span></span>Check Box 1</label>        
+                `
               );
               $("#container_list_img_" + idx).append(list_frames)           
 
@@ -796,7 +824,8 @@
                 let imgpath = list_frame[i]['imgpath'];
                 let id = list_frame[i]['id'];
                 let score = list_frame[i]['score'];
-          
+                
+                console.log("video_id: ", video_id)
                 console.log("item: ", list_frame[i]);
                 $("#list_frames_" + idx).append(
                   `
@@ -844,10 +873,8 @@
             btn_knn[id].style.display="none";
             btn_select[id].style.display="none";
         }        
-          
+////////////////////////////// PREVIOUS - NEXT IMAGE & SHOW IMAGE /////////////////////////////////          
         // Mở cửa sổ phóng to và hiển thị ảnh
-        // Khai báo biến global để theo dõi vị trí ảnh hiện tại
-        
         function openModal(idx, i) {
             let currentImageIndex = 0;
             var modal = document.getElementById("myModal");
@@ -901,49 +928,18 @@
             modal.style.display = "none";
         }
 
-        
-
-        let currentIndex = 0;
-        const nextItem = document.querySelector('.next');
-        const previousItem = document.querySelector('.previous');
-
-        function showNextItem() {
-          currentIndex = (currentIndex + 1) % data.pagefile.length;
-          updateActiveItem();
-        }
-
-        function showPreviousItem() {
-          currentIndex = (currentIndex - 1 + data.pagefile.length) % data.pagefile.length;
-          updateActiveItem();
-        }
-
-        function updateActiveItem() {
-          const containers = document.getElementsByClassName('container_list_img');
-          for (let i = 0; i < containers.length; i++) {
-            const container = containers[i];
-            if (i === currentIndex) {
-              container.classList.add('active');
-            } else {
-              container.classList.remove('active');
-            }
-          }
-        }
-
-        function handleKeyPress(event) {
-          if (event.keyCode === 13) {
-            search();
-          }
-        }
-        
+////////////////////////////// SEARCH IMG ID /////////////////////////////////        
         function go_img_search(id){
           top_k = document.getElementById("mode_topk_query").value;
           window.open("/imgsearch?imgid="+id+"&topk="+top_k);
       }
 
+////////////////////////////// GET IMAGE NEIGHTBOR ID /////////////////////////////////
         function go_neightbor_frame_search(id){
             window.open("/neighborsearch?imgid="+id);
         }
 
+////////////////////////////// SEARCH CONTINUES /////////////////////////////////
         function search_continues() {
           const url = 'http://127.0.0.1:5001/searchcontinues';
           let pagefile_list = data['pagefile'];
@@ -967,11 +963,14 @@
           .catch(error => {
               console.error('Error:', error);
           });
-        alert("KEEP RESULT FOR CONTINUES SEARCH!!!");
-        // window.open("/searchcontinues?pagelist"+"1");
+
+          alert("KEEP RESULT FOR CONTINUES SEARCH!!!");
+
+          // window.open("/searchcontinues?pagelist"+"1");
+
       }
 
-
+////////////////////////////// GET IMG LOAD HOME PAGE /////////////////////////////////
         function on_load(){
             var url = new URL(window.location.href);
             var imgpath = url.searchParams.get("imgpath");
@@ -985,9 +984,7 @@
             add_img("div_img");
         }
 
-        // function show_list_segment(id){
-        //     window.open("/showsegment?imgid="+id);
-        // }
+////////////////////////////// WRITE CSV /////////////////////////////////
         function writecsv(id,info_key){
             hoverImg[id].style.border="2px solid red";
 
@@ -1011,24 +1008,24 @@
             number_line = info["number_line"]
             my_alert = str_fname + ' ### number csv line: ' + number_line
 
-            // hoverImg[id].style.border="4px solid red";
-
             alert("write list shot: " + my_alert);
         }
-        
+
+////////////////////////////// VISUALIZE /////////////////////////////////
         function visualize(){
             var number_of_query=document.getElementById('number_of_query').value;
             console.log("number_of_query: "+number_of_query);
             window.location.href = "visualize?number_of_query="+number_of_query;
         }
 
+////////////////////////////// SEARCH IMAGE PATH /////////////////////////////////
         function search_image_path(){
             frame_path = document.getElementById('search_image_path').value;
 
             window.open("/search_image_path?frame_path="+frame_path)
             
         }
-
+////////////////////////////// SEARCH TEXT - BLIP /////////////////////////////////
         function search(){
             text_query = document.getElementById('text_query').value;
             top_k = document.getElementById("mode_topk_query").value;
@@ -1037,7 +1034,8 @@
             
             document.getElementById('text_query').innerHTML = text_query;
         }
-        
+
+////////////////////////////// SEARCH FOR TAGS /////////////////////////////////
         function search_for_tags(){
             text_for_tags = document.getElementById('text_for_tags').value;
             top_k = document.getElementById("mode_topk_query").value;
@@ -1045,22 +1043,25 @@
             window.open("/search_for_tags?text_for_tags="+text_for_tags+"&topk="+top_k);
         }
 
-        function ocr_filter() {
-          ocr_query = document.getElementById('ocr_filter').value;
-          console.log(ocr_query);
-          window.open("/ocrfilter?text_ocr="+ocr_query);
-        }
+      //  function ocr_filter() {
+       //   ocr_query = document.getElementById('ocr_filter').value;
+      //    console.log(ocr_query);
+      //    window.open("/ocrfilter?text_ocr="+ocr_query);
+      //  }
 
+////////////////////////////// RESET - REMOVE FILE TEMP - RELOAD HOME PAGE /////////////////////////////////
         function reset() {
             alert("Clean file submit.csv");
             // window.location.href = "http://0.0.0.0:5001/thumbnailimg?index=0";
             window.location.href = "http://127.0.0.1:5001/thumbnailimg?index=0"
         }
 
+////////////////////////////// DOWNLOAD FILE SUBMIT.CSV /////////////////////////////////
         function download_btn(){
             window.location.href = "dowload_submit_file?filename=submit.csv"
         }
 
+////////////////////////////// SUBMIT RESULT /////////////////////////////////
         function submit_btn(){
             // window.location.href = "dowload_submit_file?filename=submit.csv"
             $.ajax({
@@ -1094,7 +1095,8 @@
                 }
             });
         }
-        
+
+////////////////////////////// SEARCH TO IMAGE /////////////////////////////////     
         function readURL(input) {
           if (input.files && input.files[0]) {
 

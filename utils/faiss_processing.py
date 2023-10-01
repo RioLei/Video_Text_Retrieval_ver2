@@ -210,7 +210,6 @@ def write_csv(infos_query, des_path):
 
       for id_frame in lst_frames:
         check_files.append(os.path.join(video_name, id_frame))
-    ###########################
     
     check_files = set(check_files)
 
@@ -259,7 +258,7 @@ def save_feats_to_bin(ids, feats, output_bin_path):
     faiss.write_index(index, output_bin_path)
     arr_idx = ' '.join(str(id) for id in ids)
     # Ghi chuỗi vào tệp tin
-    with open('search_continues/list_index.txt', 'w') as file:
+    with open('search_continues/list_index_search_continues.txt', 'w') as file:
         file.write(arr_idx)
     print('done')
 
@@ -268,35 +267,61 @@ def mapping_index(a, b):
     for index in b:
         mapped_array.append(a[index])
     return mapped_array
-  
-def search_tags(csv_filename, search_string):
+
+# lấy những row có giá trị trong cột obj >= số lượng nhập vào (ví dụ: 1 man, 2 woman --> lấy ra những thằng
+#     có cột man >= 1 và cột woman >=2)
+def search_tags(csv_filename, obj_query):
     df = pd.read_csv(csv_filename)
-    df['tags'] = df['tags'].astype(str)
-    
-    search_results = df[df['tags'].str.contains(search_string, case=False, na=False)]
-    search_results.reset_index(inplace=True)
-    
-    print(search_results)
-    
-    index_list = search_results['index'].tolist()
-    keyframe_id_list = search_results['img_paths'].tolist()
+    # Chuyển input và tên cột thành chữ thường
+    obj_query = obj_query.lower()
+    df.columns = df.columns.str.lower()
+    input_columns = []
 
-    print(keyframe_id_list)
+    # Tạo một mask (đánh dấu) cho các dòng thỏa mãn điều kiện
+    conditions = []
+    for condition in obj_query.split(','):
+        value, column = condition.strip().split(' ')
+        column = column.strip()
+        value = float(value.strip())
+        input_columns.append(column)
+        
+        conditions.append(df[column] >= value)
+    mask = pd.concat(conditions, axis=1).all(axis=1)
 
-    
-    return index_list, keyframe_id_list
-  
+    # Lấy ra các dòng thỏa mãn điều kiện và chỉ các cột cần thiết
+    columns_to_select = ['index', 'img_paths'] + input_columns
+    df_new = df.loc[mask, columns_to_select]
+    list_index = df_new['index']
+    img_paths = df_new['img_paths']
+
+    return list_index, img_paths
+
+# Hàm để lấy tất cả các ID  
+def get_all_ids(data):
+    ids = []
+    for item in data:
+        if 'list_frame' in item and isinstance(item['list_frame'], list):
+            for frame in item['list_frame']:
+                if 'id' in frame:
+                    ids.append(frame['id'])
+
+    return ids
+
+
+########################################################################################## 
+
+############################################################################################
 import sys
 import os
 
-# current_dir = os.path.dirname(os.path.abspath(__file__))
+current_dir = os.path.dirname(os.path.abspath(__file__))
 
-# # Xác định đường dẫn tới thư mục LAVIS
-# lavis_dir = os.path.join(current_dir, 'LAVIS')
+# Xác định đường dẫn tới thư mục LAVIS
+lavis_dir = os.path.join(current_dir, 'LAVIS')
 
-# # Thêm đường dẫn tương đối của thư mục LAVIS vào sys.path
-# sys.path.append(lavis_dir)
-# from lavis.models import load_model_and_preprocess
+# Thêm đường dẫn tương đối của thư mục LAVIS vào sys.path
+sys.path.append(lavis_dir)
+from lavis.models import load_model_and_preprocess
 
 # create_file = File4Faiss('Database')
 # create_file.write_bin_file(bin_path='./dict/', json_path='./dict/keyframes_id.json', method='cosine', feature_shape=768) # Bert model
@@ -326,3 +351,5 @@ import os
   # scores, _, infos_query, image_paths = cosine_faiss.text_search(text, k=9)
   # # cosine_faiss.write_csv(infos_query, des_path='/content/submit.csv')
   # cosine_faiss.show_images(image_paths)
+  
+  
