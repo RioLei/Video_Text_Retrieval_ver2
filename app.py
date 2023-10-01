@@ -10,13 +10,14 @@ from pathlib import Path
 from posixpath import join
 import faiss
 from langdetect import detect
-from utils.faiss_processing import image_search_faiss, text_search_faiss, write_csv, extract_feats_from_bin, save_feats_to_bin,load_json_file,load_bin_file,mapping_index
+from utils.faiss_processing import write_csv, extract_feats_from_bin, save_feats_to_bin,load_json_file,load_bin_file,mapping_index, search_tags
 from utils.submit import write_csv, show_csv
-# from utils.bert_processing import BERTSearch
+from sentence_transformers import SentenceTransformer, util
 from utils.ocr_processing import fill_ocr_results, fill_ocr_df
 import torch
 import sys
 import os
+from utils.group_keyframes import convertArray 
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 
@@ -133,10 +134,12 @@ def thumbnailimg():
     for imgpath, id in zip(page_filelist, list_idx):
         pagefile.append({'imgpath': imgpath, 'id': id})
 
-    data = {'num_page': int(LenDictPath/imgperindex)+1, 'pagefile': pagefile}
+    pagefile_new = convertArray(pagefile)
     
-    return render_template('index_thumb.html', data=data)
-
+    data = {'num_page': int(LenDictPath/imgperindex)+1, 'pagefile': pagefile_new}
+    
+    return render_template('home.html', data=data)
+import json
 @app.route('/imgsearch')
 def image_search():
     print("image search")
@@ -150,7 +153,6 @@ def image_search():
     if faiss_path.is_file():
         print("continue searchinggg................................................................")
         bin_file = 'search_continues/temp_faiss.bin'
-        k= k-200
         
     else:
         bin_file = 'dict/faiss_blip_v1_cosine.bin' 
@@ -186,9 +188,15 @@ def image_search():
     for imgpath, id, score in zip(image_paths, idx_image, scores):
         pagefile.append({'imgpath': imgpath, 'id': int(id), 'score':score})
     print("searching.........")
-    data = {'num_page': int(LenDictPath/imgperindex)+1, 'pagefile': pagefile}
     
-    return render_template('index_thumb.html', data=data)
+    pagefile_new = convertArray(pagefile)
+    # print(pagefile_new)
+    # Ghi dữ liệu vào file txt
+    # with open('dict/data_test.txt', 'w') as file:
+    #     json.dump(pagefile_new, file)
+    data = {'num_page': int(LenDictPath/imgperindex)+1, 'pagefile': pagefile_new}
+    
+    return render_template('index_thumb1.html', data=data)
 
 
 @app.route('/textsearch')
@@ -202,7 +210,6 @@ def text_search():
     if faiss_path.is_file():
         print("continue searchinggg................................................................")
         bin_file = 'search_continues/temp_faiss.bin'
-        k = k-1
         
     else:
         bin_file = 'dict/faiss_blip_v1_cosine.bin'
@@ -246,28 +253,23 @@ def text_search():
         data_list = data_str.split()
         data_array = [int(num) for num in data_list]
         idx_image = mapping_index(data_array, idx_image)
-        
-    # _, idx_image2 = faiss.read_index(bin_file).search(text_features, k=k)
-    # print(type(idx_image2))
-    # print(type(index))
-    
+            
     ###### GET INFOS KEYFRAMES_ID ######
     id2img_fps = DictImagePath
     infos_query = list(map(id2img_fps.get, list(idx_image)))
     image_paths = [info['image_path'] for info in infos_query]
     
-    # _, list_ids, _, list_image_paths = text_search_faiss(index, json_path, text_query, k)
-
     imgperindex = 100 
     scores = np.array(scores, dtype=np.float32).tolist()
     # print(scores)
 
     for imgpath, id, score in zip(image_paths, idx_image, scores):
         pagefile.append({'imgpath': imgpath, 'id': int(id), 'score':score})
-
-    data = {'num_page': int(LenDictPath/imgperindex)+1, 'pagefile': pagefile}
+    pagefile_new = convertArray(pagefile)
+    # print(pagefile_new)
+    data = {'num_page': int(LenDictPath/imgperindex)+1, 'pagefile': pagefile_new}
     
-    return render_template('index_thumb.html', data=data)
+    return render_template('index_thumb1.html', data=data)
 
 @app.route('/searchcontinues', methods=['POST'])
 def search_continues():
@@ -287,8 +289,9 @@ def search_continues():
     save_feats_to_bin(ids, feats, new_bin_file)
     print('Saved new bin file')
     imgperindex = 100
-    data = {'num_page': int(LenDictPath/imgperindex)+1, 'pagefile': pagefile}
-    return render_template('index_thumb.html', data=data)
+    pagefile_new = convertArray(pagefile)
+    data = {'num_page': int(LenDictPath/imgperindex)+1, 'pagefile': pagefile_new}
+    return render_template('home.html', data=data)
 
 @app.route('/neighborsearch')
 def neightbor_search():
@@ -325,30 +328,80 @@ def neightbor_search():
             pagefile.append({'imgpath': frame_in_video_path, 'id': int(frame_id_in_video_path)})
 
         frame_index += 1
-
-    data = {'num_page': int(LenDictPath/imgperindex)+1, 'pagefile': pagefile}
+    pagefile_new = convertArray(pagefile)
+    # print(pagefile_new)
+    data = {'num_page': int(LenDictPath/imgperindex)+1, 'pagefile': pagefile_new}
     
-    return render_template('index_thumb.html', data=data)
+    return render_template('home.html', data=data)
 
     
-@app.route('/asrsearch')
-# def asrsearch():
-#     print("asr search")
-#      # remove old file submit 
-
-#     pagefile = []
-#     text_query = request.args.get('text_asr')
-#     _, list_ids, _, list_image_paths = MyBert.bert_search(text_query, k=100)
-
-#     imgperindex = 100 
-
-#     for imgpath, id in zip(list_image_paths, list_ids):
-#         imgpath = imgpath.replace("\\","/")
-#         pagefile.append({'imgpath': imgpath, 'id': int(DictKeyframe2Id[imgpath])})
-
-#     data = {'num_page': int(LenDictPath/imgperindex)+1, 'pagefile': pagefile}
+@app.route('/search_for_tags')
+def search_for_tags():
+    print("search for tags...")
+    k = str(request.args.get('topk'))
+    k = int(k[3:])
     
-#     return render_template('index_thumb.html', data=data)
+    temp_faiss_path = join("search_continues", "temp_faiss.bin")
+    faiss_path = Path(temp_faiss_path)
+    if faiss_path.is_file():
+        print("continue searchinggg................................................................")
+        bin_file = 'search_continues/temp_faiss.bin'
+        
+    else:
+        bin_file = 'dict/faiss_blip_v1_cosine.bin'
+
+    pagefile = []
+    text_query = request.args.get('text_for_tags')
+
+    csv_file = 'dict/objs_final.csv'
+    text_query = str(text_query)
+    print(text_query)
+    
+    _, image_paths = search_tags(csv_file, text_query)
+    # print(idx_image)
+    # idx_image = idx_image.flatten()
+    
+    idx_image = []
+
+    for item in image_paths:
+        for key, value in DictKeyframe2Id.items():
+            if item == key:
+                idx_image.append(value)
+                break
+
+    imgperindex = 100 
+
+    # scores = scores.flatten()
+    
+    # Check search continues
+    temp_txt_path = join("search_continues", "list_index.txt")
+    txt_path = Path(temp_txt_path)
+    if txt_path.is_file(): 
+        # Đọc dữ liệu từ tệp tin
+        with open('search_continues/list_index.txt', 'r') as file:
+            data_str = file.read()
+        data_list = data_str.split()
+        data_array = [int(num) for num in data_list]
+        idx_image = mapping_index(data_array, idx_image)
+            
+    ###### GET INFOS KEYFRAMES_ID ######
+    # id2img_fps = DictImagePath
+    # infos_query = list(map(id2img_fps.get, list(idx_image)))
+    # image_paths = [info['image_path'] for info in infos_query]
+    # print(image_paths)
+    
+    imgperindex = 100 
+    # scores = np.array(scores, dtype=np.float32).tolist()
+    # print(scores)
+
+    for imgpath, id in zip(image_paths, idx_image):
+        pagefile.append({'imgpath': imgpath, 'id': int(id)})
+    
+    pagefile_new = convertArray(pagefile)
+
+    data = {'num_page': int(LenDictPath/imgperindex)+1, 'pagefile': pagefile_new}
+    
+    return render_template('index_thumb1.html', data=data)
 
 # @app.route('/ocrfilter')
 # def ocrfilter():
@@ -414,7 +467,8 @@ def get_img():
     fpath = request.args.get('fpath')
     # fpath = fpath
     list_image_name = fpath.split("/")
-    image_name = "/".join(list_image_name[-2:])
+    # image_name = "/".join(list_image_name[-2:])
+    image_name = list_image_name[-1].split('.')[0]
 
     if os.path.exists(fpath):
         img = cv2.imread(fpath)
@@ -422,23 +476,22 @@ def get_img():
         print("load 404.jph")
         img = cv2.imread("./static/images/404.jpg")
 
-    img = cv2.resize(img, (1280,720))
+    img = cv2.resize(img, (1280, 720))
 
-    # print(img.shape)
     # Tọa độ và kích thước hình chữ nhật nền
-    x, y = 30, 80
-    w, h = cv2.getTextSize(image_name, cv2.FONT_HERSHEY_SIMPLEX, 3, 4)[0]
+    x, y = 0, 0  # Tọa độ góc trái trên cùng của hình chữ nhật
+    w, h = cv2.getTextSize(image_name, cv2.FONT_HERSHEY_SIMPLEX, 3, 6)[0]
+    padding = 10  # Khoảng cách giữa văn bản và hình chữ nhật
 
     # Vẽ hình chữ nhật nền
-    cv2.rectangle(img, (x, y), (x+w, y+h), (192, 192, 192), -1)
+    cv2.rectangle(img, (x, y), (x + w + padding, y + h + padding), (217, 217, 217), -1)  # Màu nền #D9D9D9
 
-    img = cv2.putText(img, image_name, (x, y + h), cv2.FONT_HERSHEY_SIMPLEX, 3, (255, 0, 0), 4, cv2.LINE_AA)
-    # img = cv2.putText(img, image_name, (30, 80), cv2.FONT_HERSHEY_SIMPLEX, 
-    #                3, (255, 0, 0), 4, cv2.LINE_AA)
+    # Vẽ văn bản
+    cv2.putText(img, image_name, (x + padding, y + h + padding), cv2.FONT_HERSHEY_SIMPLEX, 3, (0, 0, 0), 5, cv2.LINE_AA)  # Màu chữ đen
 
     ret, jpeg = cv2.imencode('.jpg', img)
-    return  Response((b'--frame\r\n'
-                     b'Content-Type: image/jpeg\r\n\r\n' + jpeg.tobytes() + b'\r\n\r\n'),
+    return Response((b'--frame\r\n'
+                    b'Content-Type: image/jpeg\r\n\r\n' + jpeg.tobytes() + b'\r\n\r\n'),
                     mimetype='multipart/x-mixed-replace; boundary=frame')
 
 @app.route('/dowload_submit_file', methods=['GET'])
@@ -480,12 +533,13 @@ def visualize():
     for frame_path in lst_frame:
         frame_id = DictKeyframe2Id[frame_path]
         pagefile.append({'imgpath': frame_path, 'id': int(frame_id)})
+    pagefile_new = convertArray(pagefile)
     if query_content is not None:
-        data = {'num_page': 1, 'pagefile': pagefile, 'query': query_content}
+        data = {'num_page': 1, 'pagefile': pagefile_new, 'query': query_content}
     else:
-        data = {'num_page': 1, 'pagefile': pagefile}
+        data = {'num_page': 1, 'pagefile': pagefile_new}
 
-    return render_template('index_thumb.html', data=data)
+    return render_template('index_thumb1.html', data=data)
 
 @app.route('/search_image_path')
 def search_image_path():
@@ -521,11 +575,29 @@ def search_image_path():
             pagefile.append({'imgpath': frame_in_video_path, 'id': int(frame_id_in_video_path)})
 
         frame_index += 1
+    pagefile_new = convertArray(pagefile)
 
-    data = {'num_page': int(LenDictPath/imgperindex)+1, 'pagefile': pagefile}
+    data = {'num_page': int(LenDictPath/imgperindex)+1, 'pagefile': pagefile_new}
     
-    return render_template('index_thumb.html', data=data)
+    return render_template('home.html', data=data)
 
+@app.route('/', methods=['GET', 'POST'])
+def index():
+
+    if request.method == 'POST':
+        file = request.files['query_img']
+
+        # # Save query image
+        # img = Image.open(file.stream)  # PIL image
+        # uploaded_img_path = "static/uploaded/" + datetime.now().isoformat().replace(":", ".") + "_" + file.filename
+        # img.save(uploaded_img_path)
+
+        # result, presicion = search_and_evalution(uploaded_img_path)
+        # Lấy kết quả và gửi đến html
+        
+        return render_template('index_thumb1.html')
+    else:
+        return render_template('index_thumb1.html')
 
 if __name__ == '__main__':
     submit_dir = "submission"
