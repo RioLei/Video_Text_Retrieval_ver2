@@ -268,7 +268,24 @@ def mapping_index(a, b):
     for index in b:
         mapped_array.append(a[index])
     return mapped_array
+  
+def search_tags(csv_filename, search_string):
+    df = pd.read_csv(csv_filename)
+    df['tags'] = df['tags'].astype(str)
+    
+    search_results = df[df['tags'].str.contains(search_string, case=False, na=False)]
+    search_results.reset_index(inplace=True)
+    
+    print(search_results)
+    
+    index_list = search_results['index'].tolist()
+    keyframe_id_list = search_results['img_paths'].tolist()
 
+    print(keyframe_id_list)
+
+    
+    return index_list, keyframe_id_list
+  
 import sys
 import os
 
