@@ -67,6 +67,7 @@ DictImagePath = load_json_file(json_path)
 # BERT
 # MyBert = BERTSearch(dict_bert_search='dict/keyframes_id_bert.json', bin_file='dict/faiss_bert.bin', mode='search')
 
+######################### HOME PAGE ########################################
 @app.route('/thumbnailimg')
 def thumbnailimg():
     print("load_iddoc")
@@ -139,6 +140,8 @@ def thumbnailimg():
     data = {'num_page': int(LenDictPath/imgperindex)+1, 'pagefile': pagefile_new}
     
     return render_template('home.html', data=data)
+
+####################### IMAGE SEARCH - SEARCH TO KEYFRAME ID ######################
 import json
 @app.route('/imgsearch')
 def image_search():
@@ -198,7 +201,7 @@ def image_search():
     
     return render_template('index_thumb1.html', data=data)
 
-
+######################### SEARCH TO TEXT - BLIP SEARCH ############################
 @app.route('/textsearch')
 def text_search():
     print("text search")
@@ -271,12 +274,14 @@ def text_search():
     
     return render_template('index_thumb1.html', data=data)
 
+####################### CONTINUES SEARCHINGGGG ####################
 @app.route('/searchcontinues', methods=['POST'])
 def search_continues():
     # pagefile = request.files['pagefile']
     data = request.get_json()
+    # print(data)
     pagefile = data['pagelist']
-    # print(pagefile)
+    print(pagefile)
     ids = []
     for item in pagefile:
         ids.append(int(item['id']))
@@ -288,10 +293,10 @@ def search_continues():
     ids, feats = extract_feats_from_bin(bin_file, ids)
     save_feats_to_bin(ids, feats, new_bin_file)
     print('Saved new bin file')
-    imgperindex = 100
-    pagefile_new = convertArray(pagefile)
-    data = {'num_page': int(LenDictPath/imgperindex)+1, 'pagefile': pagefile_new}
-    return render_template('home.html', data=data)
+    # imgperindex = 100
+    # pagefile_new = convertArray(pagefile)
+    # data = {'num_page': int(LenDictPath/imgperindex)+1, 'pagefile': pagefile_new}
+    # return render_template('index_thumb1.html', data=data)
 
 @app.route('/neighborsearch')
 def neightbor_search():
@@ -357,17 +362,17 @@ def search_for_tags():
     text_query = str(text_query)
     print(text_query)
     
-    _, image_paths = search_tags(csv_file, text_query)
+    idx_images, image_paths = search_tags(csv_file, text_query)
     # print(idx_image)
     # idx_image = idx_image.flatten()
     
-    idx_image = []
+    # idx_image = []
 
-    for item in image_paths:
-        for key, value in DictKeyframe2Id.items():
-            if item == key:
-                idx_image.append(value)
-                break
+    # for item in image_paths:
+    #     for key, value in DictKeyframe2Id.items():
+    #         if item == key:
+    #             idx_image.append(value)
+    #             break
 
     imgperindex = 100 
 
@@ -382,7 +387,7 @@ def search_for_tags():
             data_str = file.read()
         data_list = data_str.split()
         data_array = [int(num) for num in data_list]
-        idx_image = mapping_index(data_array, idx_image)
+        idx_images = mapping_index(data_array, idx_images)
             
     ###### GET INFOS KEYFRAMES_ID ######
     # id2img_fps = DictImagePath
@@ -394,7 +399,7 @@ def search_for_tags():
     # scores = np.array(scores, dtype=np.float32).tolist()
     # print(scores)
 
-    for imgpath, id in zip(image_paths, idx_image):
+    for imgpath, id in zip(image_paths, idx_images):
         pagefile.append({'imgpath': imgpath, 'id': int(id)})
     
     pagefile_new = convertArray(pagefile)
