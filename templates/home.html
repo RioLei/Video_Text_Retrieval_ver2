@@ -1,0 +1,1131 @@
+<html>
+<header>
+    <meta charset="utf-8">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <title>AIO-IR system</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+
+</header>
+<body onload="on_load();">
+    <style>
+        *{
+            margin: 0;
+        }
+        body{
+          margin: 0;
+        }
+        
+        .custom-btn {
+          color: #fff;
+          border-radius: 5px;
+          /* padding: 10px 25px; */
+          font-family: 'Lato', sans-serif;
+          background: transparent;
+          cursor: pointer;
+          transition: all 0.3s ease;
+          position: relative;
+          display: inline-block;
+          box-shadow:inset 2px 2px 2px 0px rgba(255,255,255,.5),
+          7px 7px 20px 0px rgba(0,0,0,.1),
+          4px 4px 5px 0px rgba(0,0,0,.1);
+          outline: none;
+        }
+
+        /* 5 */
+        .btn-5 {
+          width: 90px;
+          height: 40px;
+          line-height: 42px;
+          padding: 0;
+          border: none;
+          background: rgb(255,27,0);
+        background: linear-gradient(0deg, rgba(255,27,0,1) 0%, rgba(251,75,2,1) 100%);
+        }
+        .btn-5:hover {
+          color: #f0094a;
+          background: transparent;
+          box-shadow:none;
+        }
+        .btn-5:before,
+        .btn-5:after{
+          content:'';
+          position:absolute;
+          top:0;
+          right:0;
+          height:2px;
+          width:0;
+          background: #f0094a;
+          box-shadow:
+          -1px -1px 5px 0px #fff,
+          7px 7px 20px 0px #0003,
+          4px 4px 5px 0px #0002;
+          transition:400ms ease all;
+        }
+        .btn-5:after{
+          right:inherit;
+          top:inherit;
+          left:0;
+          bottom:0;
+        }
+        .btn-5:hover:before,
+        .btn-5:hover:after{
+          width:100%;
+          transition:800ms ease all;
+        }
+
+        .container{
+          width: 100%;
+          height: 100%;
+          background-color: #4E4D4D;;
+        }
+        /* search */
+        .search_container{
+          width: 100%;
+          display: grid;
+        }
+        .search{
+          width: 100%;
+          height: 100%;
+          padding-top: 7px;
+          padding-left: 9px;
+         
+        }
+        .search .icon-search label{
+          position: absolute;
+          font-size: 20px;
+          top: 15px;
+          left: 64%;
+          cursor: pointer;
+        }
+        .search input{
+          width: 65%;
+          height: 40px;
+          border: none;
+          border-radius: 10px;
+          padding-left: 2%;
+          font-size: 16px;
+          font-style: italic;
+          background-color: #D9D9D9;
+        }
+        .group_btn{
+          width: 14%;
+          right: 29%;
+          position: absolute;
+        }
+        .group_btn button{
+          width: 90px;
+          height: 40px;
+          border-radius: 10px;
+          margin-right: 3%;
+          margin-top: 4px;
+          color: white;
+          font-size: 16px;
+        }
+        /* search */
+    
+        /* selection_1 */
+        .selection_1{
+          width: 100%;
+          display: flex;
+          flex-wrap: wrap;
+        }
+
+        .search_for_tags {
+        height: 100%;
+        background-color: #4E4D4D;
+      }
+      .search_for_tags label{
+        font-size: 18px;
+      }
+      .search_for_tags input{
+        height: 40px;
+        width: 300px;
+        border-radius: 10px;
+        border: none;
+        margin: 5px 10px 0 10px;
+        padding-left: 3%;
+        font-size: 13px;
+        background-color: #D9D9D9;
+      }
+      .search_for_tags button{
+        width: 80px;
+        height: 40px;
+        color: white;
+        border-radius: 10px;
+        font-size: 15px;
+      }
+
+      .search_ocr{
+        height: 100%;
+        background-color: #4E4D4D;
+      }
+
+      .search_ocr label{
+        font-size: 18px;
+      }
+      .search_ocr input{
+        height: 40px;
+        width: 300px;
+        border-radius: 10px;
+        border: none;
+        margin: 5px 10px 0 10px;
+        padding-left: 3%;
+        font-size: 13px;
+        background-color: #D9D9D9;
+      }
+      .search_ocr button{
+        width: 80px;
+        height: 40px;
+        color: white;
+        border-radius: 10px;
+        font-size: 15px;
+      }
+
+      /* selection_2*/
+        .selection_2{
+          width: 100%;
+          height: 55px;
+          display: flex;
+        }
+
+       .img_path{
+        height: 100%;
+        background-color: #4E4D4D;
+       }
+       .img_path label{
+        font-size: 18px;
+      }
+      .img_path input{
+        height: 40px;
+        width: 133px;
+        border-radius: 10px;
+        border: none;
+        margin-top: 4px;
+        margin-left: 10px;
+        margin-right: 4px;
+        padding-left: 2%;
+        font-size: 13px;
+        background-color: #D9D9D9;
+      }
+      .img_path button{
+        width: 80px;
+        height: 40px;
+        color: white;
+        border-radius: 10px;
+        font-size: 15px;
+      }
+
+      .csv{
+        height: 100%;
+        background-color: #4E4D4D;
+       }
+       .csv label{
+        font-size: 18px;
+       }
+       .csv select{
+        width: 80px;
+        height: 40px;
+        border-radius: 10px;
+        border: none;
+        margin: 5px 3px 0 10px;
+        padding-left: 5px;
+        font-size: 13px;
+        background-color: #D9D9D9;
+       }
+
+       .topk{
+        position: absolute;
+        right: 29%;
+        top: 2px;
+       }
+       .topk label{
+        font-size: 14px;
+       }
+       .topk select{
+        width: 55px;
+        height: 40px;
+        border-radius: 10px;
+        border: none;
+        margin: 5px 3px 0 10px;
+        padding-left: 5px;
+        font-size: 13px;
+        background-color: #D9D9D9;
+       }
+
+       .file-upload {
+        position: absolute;
+        width: 400px;
+        right: 4px;
+        top: 5px;
+        margin: 0 auto;
+      }
+      .file-upload-btn {
+          margin: 0;
+          color: #fff;
+          background: #1fb264;
+          border: none;
+          padding: 10px;
+          border-radius: 4px;
+          border-bottom: 4px solid #15824b;
+          transition: all 0.2s ease;
+          outline: none;
+          text-transform: uppercase;
+          font-weight: 700;
+          position: absolute;
+          right: 4px;
+      }
+      #add_img_btn {
+        position: absolute;
+        right: 4px;
+      }
+
+      .file-upload-btn:hover {
+          background: #1aa059;
+          color: #ffffff;
+          transition: all 0.2s ease;
+          cursor: pointer;
+      }
+      .file-upload-btn:active {
+          border: 0;
+          transition: all 0.2s ease;
+      }
+      .file-upload-content {
+          display: none;
+          text-align: center;
+          width: 100%;
+          width: 82%;
+      }
+      .image-upload-wrap .file-upload-input {
+          position: absolute;
+          margin: 0;
+          padding: 0;
+          width: 100%;
+          height: 100%;
+          outline: none;
+          opacity: 0;
+          cursor: pointer;
+      }
+      .image-upload-wrap {
+          width: 290px;
+          height: 120px;
+          border: 4px dashed #4E4D4D;
+          position: relative;
+          background-color: white;
+      }
+      .image-dropping,
+      .image-upload-wrap:hover {
+          background-color: #D9D9D9;
+          border: 4px dashed #ffffff;
+      }
+      .image-title-wrap {
+          color: #222;
+      }
+      .drag-text {
+          text-align: center;
+          height: 100%;
+      }
+      .drag-text h3 {
+          font-weight: 100;
+          text-transform: uppercase;
+          color: black;
+          padding: 60px 0;
+      }
+      .file-upload-image {
+        width: 200px;
+        max-height: 110px;
+      }
+      .remove-image {
+          width: 200px;
+          margin: 0;
+          color: #fff;
+          background: #cd4535;
+          border: none;
+          border-radius: 4px;
+          border-bottom: 4px solid #b02818;
+          outline: none;
+          text-transform: uppercase;
+          font-weight: 700;
+          position: absolute;
+          right: 34%;
+      }
+      .remove-image:hover {
+          background: #c13b2a;
+          color: #ffffff;
+          transition: all 0.2s ease;
+          cursor: pointer;
+      }
+      .remove-image:active {
+          border: 0;
+          transition: all 0.2s ease;
+      }
+
+       .num_querry{
+        background-color: #4E4D4D;
+       }
+       .num_querry label{
+        font-size: 18px;
+       }
+       .num_querry input{
+        width: 45px;
+        height: 40px;
+        border-radius: 10px;
+        border: none;
+        margin:5px 5px 0 5px;
+        padding-left: 4%;
+        font-size: 13px;
+        background-color: #D9D9D9;
+       }
+       .num_querry button{
+        width: 80px;
+        height: 40px;
+        color: white;
+        border-radius: 10px;
+        font-size: 15px;
+       }
+       
+      
+        /* selection */
+        
+        /* list img */
+    
+        /* add image button */
+        #div_img {
+                display: flex;
+                flex-direction: row;    
+                flex-wrap: wrap;
+                background-color: #e0e5ec;
+                /* height: 120px;
+                width: 516px; */
+            }            
+
+            .container_list_img {
+              width: 100%;
+            } 
+
+            
+            .container_list_img .list_frames{
+              position: relative;
+              display: grid;
+              grid-template-columns: auto auto auto auto;
+              background-color: #4E4D4D;
+              height: 100%;
+            }
+            .container_list_img .list_frames .image img{
+              width: auto;
+              height: 200px;
+              object-fit: cover;
+            }
+
+            .image{ 
+                height: 200px;
+                object-fit: cover;
+                margin-bottom: 35px;
+            }
+
+            .image .wrap_btn{
+              width: 100%;
+              position: absolute;
+              display: flex;
+              justify-content: space-between;
+            }
+    
+            .image .btn_knn {
+                display: none;
+                position: absolute;
+                background-color: rgba(255,27,0,1);
+                color: white;
+                font-size: 14px;
+                padding: 5px 12px;
+                cursor: pointer;
+                border-radius: 5px;
+                text-align: center;
+            }
+            .image .btn_select {
+                display: none;
+                position: absolute;
+                background-color: rgba(255,27,0,1);
+                color: white;
+                font-size: 14px;
+                padding: 5px 12px;
+                cursor: pointer;
+                border-radius: 5px;
+                text-align: center;
+                left: 19%;
+            }
+            
+            .image .btn_knn:hover{
+              background-color: #e0e5ec;
+              color: black;
+            }
+
+            .image .btn_select:hover{
+              background-color: #e0e5ec;
+              color: black;
+            }
+    
+            .image img:hover{
+                border: 2px solid rgb(255,27,0);
+            }
+            .image .wrap_zoomIcon{
+              width: 25%;
+              position: absolute;
+              display: flex;
+              justify-content: space-between;
+            }
+            /* Kiểu dáng biểu tượng phóng to */
+            .image #zoomIcon {
+              font-size: 24px;
+              cursor: pointer;
+              position: absolute;
+              bottom: 3%;
+              left: 90%;
+              transform: translate(-50%, -50%);
+            }
+
+            /* Kiểu dáng cửa sổ phóng to */
+            .modal {
+              display: none;
+              position: fixed;
+              z-index: 1;
+              padding-top: 50px;
+              left: 0;
+              top: 0;
+              width: 100%;
+              height: 100%;
+              overflow: auto;
+              background-color: rgba(0, 0, 0, 0.9);
+            }
+
+            .modal-content {
+              margin: auto;
+              display: block;
+              width: 80%;
+              max-width: 70%;
+              transition: all 0.15s;
+            }
+
+            .close {
+              color: white;
+              position: absolute;
+              top: 10px;
+              right: 25px;
+              font-size: 35px;
+              font-weight: bold;
+              transition: 0.3s;
+            }
+
+            .close:hover,
+            .close:focus {
+              color: #bbb;
+              text-decoration: none;
+              cursor: pointer;
+            }
+
+            
+            /* previous and next image button*/
+            button.next, button.previous {
+              position: absolute;
+               display: block;
+               width: auto;
+               height: auto;
+               background: #a6a6a6;
+               border-color:#a6a6a6;
+               color: #fff;
+               text-decoration: none;
+               font-weight: 600;
+               font-size: 24px;
+               opacity: 0.7;
+               cursor: pointer;
+               background: rgba(255,27,0,1);
+             }
+             
+             button.previous {
+               position: absolute;
+               display: block; 
+               top: 55%;
+               left: 20%; 
+             }
+             
+             button.next {
+               position: absolute;
+               right:20%;
+               top: 55%;
+               display: block;  
+             }
+             
+             button:hover {
+               background-color: white;
+               border-color:white;
+               color: black;
+             }
+             
+             button:active {
+               background-color: #0059b3;
+               border-color:#0059b3;
+               color: black;
+             }
+
+            /* .container_list_img img:focus{hoverImg
+                border: 1px solid blue;
+            } */
+            /* poup */
+            #popup_canvas{
+                width: 100%;
+                height: 100%;
+            }
+    
+            #popup_fname_div{
+                position: fixed;
+                margin-left: 25%;
+                margin-top: 60%;
+                color: rgb(0,255,0);
+                font-size: 30;
+            }
+
+            @supports (display: flex) {
+            @media screen and (min-width: 1024px) {
+              article {
+                display: flex;
+              }
+            }
+          }
+
+          @supports (display: grid) {
+            @media screen and (min-width: 1024px) {
+              article {
+                display: grid;
+              }
+            }
+          }
+  
+      </style>
+    <div class="container">
+        <div class="search_container">
+          <div class="search">
+          <span class="icon-search">
+            <label for="" >
+              <i class="fa fa-search" onclick="search();" aria-hidden="true"></i>
+            </label>
+          </span> 
+            <input id="text_query" type="text" placeholder="Text query" onkeypress="handleKeyPress(event)">
+            <div class="topk">
+              <!-- <label for="mode_topk">TOP K</label> -->
+            <select name="" id="mode_topk_query">
+              <option value="top200">200</option>
+              <option value="top500">500</option>
+              <option value="top1000">1000</option>
+              <option value="top2000">2000</option>
+            </select>
+
+          </div>
+          <!-- {# form file submit#} -->
+          <form method="POST" enctype="multipart/form-data">
+              <div class="file-upload">
+                <button class="custom-btn btn-5" id="add_img_btn" type="button" onclick="$('.file-upload-input').trigger( 'click' )">Add Image</button>
+                <button type="submit" class="custom-btn btn-5" style="position: absolute;
+                right: 4px;
+                top: 40%;">Search</button>
+                <div class="image-upload-wrap">
+                    <input class="file-upload-input" type="file" name="query_img" onchange="readURL(this);" accept="image/*" />
+                    <div class="drag-text">
+                        <h3>Drag and drop a file or select add Image</h3>
+                    </div>
+                </div>
+                <div class="file-upload-content">
+                    <img class="file-upload-image" src="#" alt="your image" />
+
+                    <div class="image-title-wrap">
+                        <button type="button" onclick="removeUpload()" class="remove-image">Remove</button>
+                    </div>
+                </div>
+                
+            </div>
+          </form>
+        
+
+        </div>
+        <div class="selection_1">
+
+          <div class="search_for_tags">
+            <!--<label for="">Search for tags</label> -->
+             <input id="text_for_tags" type="text" placeholder="2people, 1car, 4motorbikes"></input>
+            <button class="custom-btn btn-5" onclick="search_for_tags();"><span>Search</span></button>
+        </div>
+
+        <div class="img_path">
+          <!-- <label for="">IMAGE PATH</label> -->
+          <input id="search_image_path" type="text" placeholder="L01_V001/000000"></input>
+          <button class="custom-btn btn-5" onclick="search_image_path();"><span>Search</span></button>
+        </div>
+
+        <span class="group_btn">
+          <button class="custom-btn btn-5" onclick="search_continues();"><span>Keep</span></button>
+          <button class="custom-btn btn-5" onclick="reset()"><span>Clear</span></button>
+          <!-- <button class="custom-btn btn-5" onclick="submit_btn()"><span>Submit</span></button> -->
+          <button class="custom-btn btn-5" onclick="download_btn()"><span>Dowload</span></button>
+        </span>
+
+      </div>
+        
+
+        <div class="selection_2">
+          <div class="search_ocr">
+            <!-- <label for="">OCR+ASR FILTER</label> -->
+            <input placeholder="Search Color. Ex: red" id="ocr_filter">
+            <button class="custom-btn btn-5" onclick="ocr_filter();"><span>Search</span></button>
+          </div>
+
+
+        <div class="csv">
+        <!--  <label for="mode_csv">CHOOSE WRITE MODE TO CSV</label> -->
+          <select name="" id="mode_write_csv">
+            <option value="single">Single</option>
+            <option value="list_shot">List_shot</option>
+          </select>
+          
+        </div>
+  
+          <div class="num_querry">
+           <!-- <label for="">FILE QUERY</label> -->
+            <input  type="number" placeholder="1" id="number_of_query">
+            <button class="custom-btn btn-5" onclick="visualize();"><span>Visualize</span></button>
+          </div>
+        </div>
+
+        <!-- <div style="height: 5px; width: 100%; background-color: black; margin-bottom: 5px; margin-top: 5px;"></div> -->
+        
+        <div id="div_img" class="image-container">
+
+            
+            
+        </div>
+  
+        <div style="height: 5px; width: 100%; background-color: black;"></div>
+        <div id="div_page">
+            
+        </div>
+        <div id="div_total_page">Total: 1200 page</div>
+        <div style="margin-bottom: 50px;"></div>
+  
+      </div>
+    <script>
+        var data = '{{ data|tojson }}';
+        data = data.replace(/\s/g, '');
+        data = data.replace(/\\/g, '/');
+        data = JSON.parse(data);
+        let btn_knn = document.getElementsByClassName("btn_knn");
+        let btn_select = document.getElementsByClassName("btn_select");
+        let hoverImg = document.getElementsByClassName("hoverImg");
+        // console.log("data: " + JSON.stringify(data))
+
+        function add_paging(){
+            console.log(data['num_page']);
+            var url = new URL(window.location.href);
+            var cur_index = parseInt(url.searchParams.get("index"));
+            var imgpath = url.searchParams.get("imgpath");
+            // var labelpath = url.searchParams.get("labelpath");
+            if (cur_index == 'undefined'){
+                cur_index = 0;
+            }
+            var i = cur_index-4;
+            if (i > 0){
+                var iDiv = document.createElement('div');
+                iDiv.className = 'page_num';
+                iDiv.innerHTML = "...";
+                document.getElementById("div_page").appendChild(iDiv);
+            }
+            for (i; ((i < data['num_page']) && (i < cur_index+4)); i++){
+                if (i < 0){
+                    i = 0;
+                }
+                var iDiv = document.createElement('div');
+                iDiv.className = 'page_num';
+                var iA = document.createElement('a');
+                // iA.href = "?index="+i.toString()+"&imgpath="+imgpath+"&labelpath="+labelpath;
+                iA.href = "?index="+i.toString()+"&imgpath="+imgpath;
+                // console.log(iA.href);
+                iA.innerHTML = i.toString();
+                if (i == cur_index){
+                    iA.style.color="green";
+                }
+                iDiv.appendChild(iA);
+                document.getElementById("div_page").appendChild(iDiv);
+            }
+            if (i < data['num_page']){
+                var iDiv = document.createElement('div');
+                iDiv.className = 'page_num';
+                iDiv.innerHTML = "...";
+                document.getElementById("div_page").appendChild(iDiv);
+            }
+            document.getElementById("div_total_page").innerHTML = "Total: "+data['num_page'].toString()+" page";
+        }        
+        
+        function add_img(div_id_image) {
+            let div_img = document.getElementById("div_img");
+            let pagefile_list = data['pagefile'];
+            let cur_idx = 0;
+          
+            for (var idx = 0; idx < pagefile_list.length; idx++) {
+              let video_id = pagefile_list[idx]['video_id'];
+              let list_frame = pagefile_list[idx]['list_frame'];
+          
+              let container_list_img = document.createElement("div");
+              container_list_img.className = "container_list_img";
+              container_list_img.id = "container_list_img_" + idx; // Sử dụng chỉ số idx để tạo id duy nhất cho mỗi container_list_img
+              // cái div list_frames này chứa các frame cùng thuộc 1 video id
+              let list_frames = document.createElement("div");
+              list_frames.className = "list_frames";
+              list_frames.id = "list_frames_" + idx; 
+
+              // cái div_img này là chứa tất cả ảnh
+              $("#div_img").append(container_list_img);
+              
+              // cái container_list_img này là chứa thẻ span video_id và 1 div nhỏ để chứa ảnh thuộc trong video_id đó
+              $("#container_list_img_" + idx).append(
+                `<span class="video-id" style="
+                    display:block;
+                    font-size: xx-large;
+                    color: black;
+                        ">${video_id}</span>`
+              );
+              $("#container_list_img_" + idx).append(list_frames)           
+
+              for (var i = 0; i < list_frame.length; i++) {
+                let imgpath = list_frame[i]['imgpath'];
+                let id = list_frame[i]['id'];
+                let score = list_frame[i]['score'];
+          
+                console.log("item: ", list_frame[i]);
+                $("#list_frames_" + idx).append(
+                  `
+                  <div class="image" id="img_"+"${id}" onmouseover="mouseOver(${cur_idx})" onmouseout="mouseOut(${cur_idx})">
+                    <div class="wrap_btn" >
+                      <button class="btn_knn" onClick="go_img_search(${id})">IR</button>
+                      <button class="btn_select" onClick="writecsv(${cur_idx},'${id},${imgpath}')">SELECT</button>
+                    </div>
+                    <img class="hoverImg" onclick="go_neightbor_frame_search(${id})" alt='${id}' src="get_img?fpath=${imgpath}">
+                    <div class="wrap_zoomIcon">
+                      <span id="zoomIcon" onclick="openModal(${idx}, ${i})">&#128269;</span>
+                    </div>
+                    
+                    <span class="score" style="
+                          display: block;
+                          color: aliceblue;
+                          font-size: medium;
+                          ">score: ${score}</span>
+                  </div>
+                  
+                  <div id="myModal" class="modal">
+                    <span class="close" onclick="closeModal()">&times;</span>
+                    <img class="modal-content" id="modalImage">
+          
+                    <!-- Nút chuyển đến ảnh trước -->
+                    <button class="previous">&lt;</button>
+          
+                    <!-- Nút chuyển đến ảnh sau -->
+                    <button class="next">&gt;</button>
+                  </div>
+                  `
+                );
+                cur_idx += 1;
+              }
+            }
+          }
+
+        function mouseOver(id){
+            //console.log('btn_knn: ' + btn_knn[id])
+            btn_knn[id].style.display="block";
+            btn_select[id].style.display="block";
+        }
+        function mouseOut(id){
+            // console.log('type: ' + typeof(btn_knn))
+            btn_knn[id].style.display="none";
+            btn_select[id].style.display="none";
+        }        
+          
+        // Mở cửa sổ phóng to và hiển thị ảnh
+        // Khai báo biến global để theo dõi vị trí ảnh hiện tại
+        
+        function openModal(idx, i) {
+            let currentImageIndex = 0;
+            var modal = document.getElementById("myModal");
+            let pagefile_list = data['pagefile'];
+            let list_frame = pagefile_list[idx]['list_frame'];
+            
+            // Kiểm tra xem index i có nằm trong phạm vi của list_frame hay không
+            if (i >= 0 && i < list_frame.length) {
+                let imgpath = list_frame[i]['imgpath'];
+                console.log("imgpath: " + imgpath)
+                var modalImg = document.getElementById("modalImage");
+                modal.style.display = "block";
+                modalImg.src = 'get_img?fpath=' + imgpath;
+                
+                // Đặt vị trí hiện tại cho biến global
+                currentImageIndex = i;
+                
+                // Đặt sự kiện click cho nút "previous"
+                const previousButton = document.querySelector(".previous");
+                previousButton.addEventListener("click", showPreviousImage);
+                
+                // Đặt sự kiện click cho nút "next"
+                const nextButton = document.querySelector(".next");
+                nextButton.addEventListener("click", showNextImage);
+            } else {
+                console.log("Invalid image index");
+            }
+            function showPreviousImage() {
+              // Lùi đến ảnh trước
+              currentImageIndex = (currentImageIndex - 1 + list_frame.length) % list_frame.length;
+              updateModalImage();
+          }
+  
+          function showNextImage() {
+              // Chuyển đến ảnh sau
+              currentImageIndex = (currentImageIndex + 1) % list_frame.length;
+              updateModalImage();
+          }
+  
+          function updateModalImage() {
+              // Cập nhật ảnh trong modal dựa trên currentImageIndex
+              const modalImg = document.getElementById("modalImage");
+              const imgpath = list_frame[currentImageIndex]['imgpath'];
+              modalImg.src = 'get_img?fpath=' + imgpath;
+          }
+        }
+
+        function closeModal() {
+            // Đóng modal
+            const modal = document.getElementById("myModal");
+            modal.style.display = "none";
+        }
+
+        
+
+        let currentIndex = 0;
+        const nextItem = document.querySelector('.next');
+        const previousItem = document.querySelector('.previous');
+
+        function showNextItem() {
+          currentIndex = (currentIndex + 1) % data.pagefile.length;
+          updateActiveItem();
+        }
+
+        function showPreviousItem() {
+          currentIndex = (currentIndex - 1 + data.pagefile.length) % data.pagefile.length;
+          updateActiveItem();
+        }
+
+        function updateActiveItem() {
+          const containers = document.getElementsByClassName('container_list_img');
+          for (let i = 0; i < containers.length; i++) {
+            const container = containers[i];
+            if (i === currentIndex) {
+              container.classList.add('active');
+            } else {
+              container.classList.remove('active');
+            }
+          }
+        }
+
+        function handleKeyPress(event) {
+          if (event.keyCode === 13) {
+            search();
+          }
+        }
+        
+        function go_img_search(id){
+          top_k = document.getElementById("mode_topk_query").value;
+          window.open("/imgsearch?imgid="+id+"&topk="+top_k);
+      }
+
+        function go_neightbor_frame_search(id){
+            window.open("/neighborsearch?imgid="+id);
+        }
+
+        function search_continues() {
+          const url = 'http://127.0.0.1:5001/searchcontinues';
+          let pagefile_list = data['pagefile'];
+          console.log('data pagelist:', pagefile_list)
+          const pagelist = {
+            'pagelist': pagefile_list
+          }
+
+          fetch(url, {
+              method: 'POST',
+              headers: {
+                  'Content-Type': 'application/json'
+              },
+              body: JSON.stringify(pagelist)
+          })
+          .then(response => response.json())
+          .then(result => {
+              // Handle the API response here
+              document.getElementById('result').textContent = JSON.stringify(result);
+          })
+          .catch(error => {
+              console.error('Error:', error);
+          });
+
+         window.open("/searchcontinues?pagelist"+"1");
+      }
+
+
+        function on_load(){
+            var url = new URL(window.location.href);
+            var imgpath = url.searchParams.get("imgpath");
+            // var labelpath = url.searchParams.get("labelpath");
+            // document.getElementById('imgpath').value = imgpath;
+            // document.getElementById('labelpath').value = labelpath;
+            if("query" in data){
+              document.getElementById("text_query").value = data["query"]
+            }
+            add_paging();
+            add_img("div_img");
+        }
+
+        // function show_list_segment(id){
+        //     window.open("/showsegment?imgid="+id);
+        // }
+        function writecsv(id,info_key){
+            hoverImg[id].style.border="2px solid red";
+
+            console.log("info_key: " + info_key);
+            var mode_write_csv = document.getElementById("mode_write_csv").value;
+            console.log("mode_write_csv: " + mode_write_csv);
+            var info = {};
+            $.ajax({
+                url: "writecsv?info_key="+info_key+"&mode="+mode_write_csv,
+                type: 'GET',
+                async: false,
+                dataType: 'json',
+                success: function(res) {
+                    console.log("res: ", res);
+                    info = res;
+                }
+            });
+            
+            str_fname = info["str_fname"]
+            console.log("str_fname: " + str_fname);
+            number_line = info["number_line"]
+            my_alert = str_fname + ' ### number csv line: ' + number_line
+
+            // hoverImg[id].style.border="4px solid red";
+
+            alert("write list shot: " + my_alert);
+        }
+        
+        function visualize(){
+            var number_of_query=document.getElementById('number_of_query').value;
+            console.log("number_of_query: "+number_of_query);
+            window.location.href = "visualize?number_of_query="+number_of_query;
+        }
+
+        function search_image_path(){
+            frame_path = document.getElementById('search_image_path').value;
+
+            window.open("/search_image_path?frame_path="+frame_path)
+            
+        }
+
+        function search(){
+            text_query = document.getElementById('text_query').value;
+            top_k = document.getElementById("mode_topk_query").value;
+
+            window.location.href = "/textsearch?textquery="+text_query+"&topk="+top_k;
+            
+            document.getElementById('text_query').innerHTML = text_query;
+        }
+        
+        function search_for_tags(){
+            text_for_tags = document.getElementById('text_for_tags').value;
+            top_k = document.getElementById("mode_topk_query").value;
+
+            window.open("/search_for_tags?text_for_tags="+text_for_tags+"&topk="+top_k);
+        }
+
+        function ocr_filter() {
+          ocr_query = document.getElementById('ocr_filter').value;
+          console.log(ocr_query);
+          window.open("/ocrfilter?text_ocr="+ocr_query);
+        }
+
+        function reset() {
+            alert("Clean file submit.csv");
+            // window.location.href = "http://0.0.0.0:5001/thumbnailimg?index=0";
+            window.location.href = "http://127.0.0.1:5001/thumbnailimg?index=0"
+        }
+
+        function download_btn(){
+            window.location.href = "dowload_submit_file?filename=submit.csv"
+        }
+
+        function submit_btn(){
+            // window.location.href = "dowload_submit_file?filename=submit.csv"
+            $.ajax({
+                type: "GET",
+                url: "get_first_row",
+                dataType: "json",
+                success: function(data) {
+                    if(data["video_id"] != "None"){
+                      $.ajax({
+                        url: "https://eventretrieval.one/api/v1/submit?item="+data.video_id+"&frame="+data.frame_id+"&session=node0a0yuwswfadu2mjgfwcpzqzo744", 
+                        type: "GET",
+                        dataType: "json", 
+                        success: function(result){
+                          alert(result.description);
+                        },
+                        error: function(error){
+                          var status=error.status;
+                          if(status == 412){
+                            alert("Duplicate or Wrong Format");
+                          }else if(status == 401){
+                            alert("Unauthorized Error");
+                          }
+                        }
+                        });
+                    }else{
+                      alert("Video None")
+                    }
+                },
+                error: function(xhr, ajaxOptions, thrownError) {
+                    alert("Status: " + xhr.status + "     Error: " + thrownError);
+                }
+            });
+        }
+        
+        function readURL(input) {
+          if (input.files && input.files[0]) {
+
+            var reader = new FileReader();
+
+            reader.onload = function(e) {
+              $('.image-upload-wrap').hide();
+
+              $('.file-upload-image').attr('src', e.target.result);
+              $('.file-upload-content').show();
+
+              $('.image-title').html(input.files[0].name);
+            };
+
+            reader.readAsDataURL(input.files[0]);
+
+          } else {
+            removeUpload();
+          }
+         }
+
+         function removeUpload() {
+          $('.file-upload-input').replaceWith($('.file-upload-input').clone());
+          $('.file-upload-content').hide();
+          $('.image-upload-wrap').show();
+         }
+         $('.image-upload-wrap').bind('dragover', function () {
+            $('.image-upload-wrap').addClass('image-dropping');
+          });
+          $('.image-upload-wrap').bind('dragleave', function () {
+            $('.image-upload-wrap').removeClass('image-dropping');
+         });
+    </script>
+</body>
+</html> 
