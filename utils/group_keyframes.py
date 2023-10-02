@@ -41,3 +41,22 @@ def deleteFrames(ids, dict, text_out):
 # ids = ['L01_V001', 'L02_V001',...]
 # dict = input_dict
 # text_out = output txt file
+import os
+import json
+import csv
+def extractMetadata(filepath, outputfile):
+    outputlist = []
+    listpath = os.listdir(filepath)
+    for name in listpath:
+        namepath = filepath+ "\\" +name
+        videoid = name.split('.')[0]
+        with open(namepath, "r", encoding = "utf8") as file:
+            data = json.load(file)
+        value = [data['watch_url'], videoid]
+        outputlist.append(value)
+    with open(outputfile, mode='w', newline='') as file:
+        writer = csv.writer(file)
+        writer.writerows(outputlist)
+    return("save done")
+
+
