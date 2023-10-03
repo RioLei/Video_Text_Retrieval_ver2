@@ -59,4 +59,21 @@ def extractMetadata(filepath, outputfile):
         writer.writerows(outputlist)
     return("save done")
 
+import os
+import pandas
+from pandas import read_csv
+import csv
+
+def extractMapKeyframes(filepath, outputfile):
+    listpath = os.listdir(filepath)
+    for name in listpath:
+        path = filepath+ "\\"+name
+        df = read_csv(path)
+        df.drop(['n', 'fps'], axis =1, inplace = True )
+        Keyframes = name.split("_")[0]
+        Value = name.split(".")[0]
+        df['frame_idx']= df['frame_idx'].apply(lambda x: f"Database/Keyframes_{Keyframes}/{Value}/"+ "{:06}".format(x) +".jpg")
+        df= df[['frame_idx', 'pts_time']]
+        df.to_csv(outputfile, mode = 'a', header= False, index = False)
+    return('save done')
 
