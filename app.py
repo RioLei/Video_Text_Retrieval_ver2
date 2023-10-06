@@ -227,8 +227,9 @@ def image_search():
         index_file = "search_continues/list_index_search_continues.txt"
         scores, idx_images = searchcontinues(new_file_bin, index_file, k, id_query=id_query)
     else:
-        scores, idx_images = faiss_model.search(id_query, k=k)
-        # idx_images = idx_images.flatten()
+        query_feats = faiss_model.reconstruct(id_query).reshape(1,-1)
+        scores, idx_images = faiss_model.search(query_feats, k=k)
+        idx_images = idx_images.flatten()
         scores = scores.flatten()
         
     id2img_fps = DictImagePath
