@@ -15,8 +15,8 @@ def write_csv(id2img_fps, mode_write_csv, selected_image, id, des_path):
     frame_ids = []
 
     ### GET SELECTED SUBMIT ###
-    video_name_selected = selected_image.split('/')[-2] + '.mp4'
-    id_frame_selected = selected_image.split('/')[-1].replace('.jpg', '')
+    video_name_selected = selected_image.split('/')[-2] # L01_V001
+    id_frame_selected = selected_image.split('/')[-1].replace('.jpg', '') # 012345
 
     video_names.append(video_name_selected)
     frame_ids.append(id_frame_selected)
@@ -25,7 +25,7 @@ def write_csv(id2img_fps, mode_write_csv, selected_image, id, des_path):
     if mode_write_csv == 'list_shot':
       ### GET INFOS SUBMIT ###
       info = copy.deepcopy(id2img_fps[id])
-      video_name = info['image_path'].split('/')[-2] + '.mp4'
+      video_name = info['image_path'].split('/')[-2] 
       lst_frames = info['list_shot_id']
       if id_frame_selected in lst_frames:
         lst_frames.remove(id_frame_selected)
@@ -59,10 +59,11 @@ def write_csv(id2img_fps, mode_write_csv, selected_image, id, des_path):
 def show_csv(csv_path):
   submit_csv = pd.read_csv(csv_path, header = None)
 
-  # x[0]: C00_V0135.mp4
-  # x[1]: 013053
-  # f'Database/KeyFrames{str(x[0])[:-6]}/{x[0][:-4]}/{x[1]:06}.jpg' => Frame Path
-  submit_csv['path'] = submit_csv.apply(lambda x: f'Database/KeyFrames{str(x[0])[:-6]}/{x[0][:-4]}/{x[1]:06}.jpg', axis = 1)
+  # x[0]: L01_V001
+  # x[1]: 012345
+  # f'Database/Keyframes_{str(x[0])[:3]}/{x[0]}/{x[1]:06}.jpg' => Frame Path
+  
+  submit_csv['path'] = submit_csv.apply(lambda x: f'Database/Keyframes_{str(x[0])[:3]}/{x[0]}/{x[1]:06}.jpg', axis = 1)
   paths = submit_csv['path'].values
   return paths
 
