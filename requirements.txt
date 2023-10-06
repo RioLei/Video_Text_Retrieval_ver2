@@ -1,3 +1,4 @@
+#googletrans
 flask
 numpy
 pandas
@@ -10,22 +11,30 @@ ftfy
 regex
 tqdm
 matplotlib
-langdetect
 rapidfuzz
 sentence_transformers
-googletrans
+git+https://github.com/openai/CLIP.git
+faiss-cpu
+ftfy 
+regex 
+langdetect
+sentencepiece 
+tokenizers
+
 # LAVIS  BLIP requirements:
 contexttimer
 decord
 diffusers<=0.16.0
 einops>=0.4.1
 fairscale==0.4.4
+ftfy
 iopath
 ipython
 omegaconf
 opencv-python-headless==4.5.5.64
 opendatasets
 packaging
+pandas
 plotly
 pre-commit
 pycocoevalcap
