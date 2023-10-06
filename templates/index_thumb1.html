@@ -5,7 +5,6 @@
     <title>AIO-IR system</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
-
 </header>
 <body onload="on_load();">
     <style>
@@ -401,7 +400,7 @@
             }            
 
             .container_list_img {
-              width: 100%;
+              width: 98.5%;
             } 
 
             
@@ -432,7 +431,7 @@
                 vertical-align: top;
                 justify-content: end;
                 position: relative;
-                top: -20px;
+                bottom: -10px;
             }
             
             input[type="checkbox"] + label span {
@@ -447,6 +446,20 @@
             
             input[type="checkbox"]:checked + label span {
                 background: url(https://s3-us-west-2.amazonaws.com/s.cdpn.io/210284/check_radio_sheet.png) -19px top no-repeat;
+            }
+
+            .deleteNoiseBtn {
+              color: white;
+              background-color: rgba(255,27,0,1);
+              display: flex;
+              position: relative;
+              right: -1290px;
+              height: 40px;
+              border-radius: 5px;
+              align-items: center;
+              justify-content: center;
+              cursor: pointer;
+              font-size: initial;
             }
             
 
@@ -506,6 +519,11 @@
               display: flex;
               justify-content: space-between;
             }
+
+            .image iframe {
+              width:100%;  
+              min-height:500px;
+           }
             /* Kiểu dáng biểu tượng phóng to */
             .image #zoomIcon {
               font-size: 24px;
@@ -652,13 +670,11 @@
             </select>
 
           </div>
-          <!-- {# form file submit#} -->
-          <form method="POST" enctype="multipart/form-data">
-              <div class="file-upload">
-                <button class="custom-btn btn-5" id="add_img_btn" type="button" onclick="$('.file-upload-input').trigger( 'click' )">Add Image</button>
-                <button type="submit" class="custom-btn btn-5" style="position: absolute;
-                right: 4px;
-                top: 40%;">Search</button>
+          
+          <form method="POST" enctype="multipart/form-data" id="your_form_id">
+            <div class="file-upload">
+                <button class="custom-btn btn-5" id="add_img_btn" type="button" onclick="$('.file-upload-input').trigger('click')">Add Image</button>
+                <button type="button" class="custom-btn btn-5" style="position: absolute; right: 4px; top: 40%;" onclick="submitForm()">Search</button>
                 <div class="image-upload-wrap">
                     <input class="file-upload-input" type="file" name="query_img" onchange="readURL(this);" accept="image/*" />
                     <div class="drag-text">
@@ -667,14 +683,12 @@
                 </div>
                 <div class="file-upload-content">
                     <img class="file-upload-image" src="#" alt="your image" />
-
                     <div class="image-title-wrap">
                         <button type="button" onclick="removeUpload()" class="remove-image">Remove</button>
                     </div>
                 </div>
-                
             </div>
-          </form>
+        </form>
         
 
         </div>
@@ -695,8 +709,8 @@
         <span class="group_btn">
           <button class="custom-btn btn-5" onclick="search_continues();"><span>Keep</span></button>
           <button class="custom-btn btn-5" onclick="reset()"><span>Clear</span></button>
-          <!-- <button class="custom-btn btn-5" onclick="submit_btn()"><span>Submit</span></button> -->
           <button class="custom-btn btn-5" onclick="download_btn()"><span>Dowload</span></button>
+          <button class="custom-btn btn-5" onclick="submit_btn()"><span>Submit</span></button>
         </span>
 
       </div>
@@ -799,6 +813,9 @@
             let pagefile_list = data['pagefile'];
             let cur_idx = 0;
             let checkboxId = 0; // Biến đếm cho các checkbox
+            // Tạo một đối tượng để ánh xạ giữa idx của deleteNoiseBtn và video_id, list_frame
+            let idxMapping = {};
+
           
             for (var idx = 0; idx < pagefile_list.length; idx++) {
               let video_id = pagefile_list[idx]['video_id'];
@@ -812,31 +829,42 @@
               list_frames.className = "list_frames";
               list_frames.id = "list_frames_" + idx; 
 
+
               // cái div_img này là chứa tất cả ảnh
               $("#div_img").append(container_list_img);
               
               // Tạo checkbox với ID duy nhất
-              let checkboxHtml = `
-              <input type="checkbox" id="c${checkboxId}" name="cc" />
-              <label for="c${checkboxId}"><span></span>Check</label>
-             `;
+              //let checkboxHtml = `
+              // <input type="checkbox" id="c_video_${checkboxId}" name="cc" />
+              // <label for="c_video_${checkboxId}"><span></span>CHECK</label>
+              // `;
+
+             let deleteNoiseHTML = `<button class="deleteNoiseBtn" id="deleteNoiseBtn${checkboxId}">Delete Noise</button>`
+
               
               // cái container_list_img này là chứa thẻ span video_id và 1 div nhỏ để chứa ảnh thuộc trong video_id đó
               $("#container_list_img_" + idx).append(
                 `<span class="video-id" style="
                     display:block;
+                    position: absolute;
                     font-size: xx-large;
                     color: black;
                         ">${video_id}</span>
-                  ${checkboxHtml}
+                  ${deleteNoiseHTML}
                 `
               );
-              $("#container_list_img_" + idx).append(list_frames)           
+              $("#container_list_img_" + idx).append(list_frames)   
+              
+              // Thêm index vào idxMapping
+              idxMapping[`deleteNoiseBtn${checkboxId}`] = {index: idx};     
 
               for (var i = 0; i < list_frame.length; i++) {
                 let imgpath = list_frame[i]['imgpath'];
                 let id = list_frame[i]['id'];
                 let score = list_frame[i]['score'];
+                // Tạo ID cho modal và nút xem video không chứa dấu cách
+                var modalId = "myModal_" + id;
+                var viewVideoBtnId = "view_video_btn_" + id;
           
                 console.log("item: ", list_frame[i]);
                 $("#list_frames_" + idx).append(
@@ -850,7 +878,7 @@
                     <div class="wrap_zoomIcon">
                       <span id="zoomIcon" onclick="openModal(${idx}, ${i})">&#128269;</span>
                     </div>
-                    
+
                     <span class="score" style="
                           display: block;
                           color: aliceblue;
@@ -870,10 +898,61 @@
                   </div>
                   `
                 );
-                cur_idx += 1;
+                cur_idx++;
                 checkboxId++; // Tăng biến đếm cho checkbox ID
               }
             }
+
+            // Thêm xử lý cho nút "Delete Noise" cho từng video
+            $(document).on('click', '[id^="deleteNoiseBtn"]', function() {
+              // Lấy ID của nút "Delete Noise"
+              var btnId = $(this).attr('id');
+              var idx = idxMapping[btnId].index;
+              console.log("idx = ", idx);
+
+              var container = $(this).closest("#container_list_img_"+idx);
+              var videoIdSpan = container.find(".video-id");
+              var deleteNoiseBtn = container.find("[id^='deleteNoiseBtn']"); 
+
+              // Lấy video_id và list_frame tương ứng
+              var video_id = pagefile_list[idx]['video_id'];
+              console.log("video_id: " + video_id);
+              var list_frame = pagefile_list[idx]['list_frame'];
+
+              // Gửi video_id và list_frame đến backend bằng AJAX
+              $.ajax({
+                  url: '/delete_noise', // Đặt URL tương ứng với endpoint của bạn ở phía máy chủ (app.py)
+                  type: 'POST', // Hoặc 'GET' tùy thuộc vào cách bạn cấu hình máy chủ
+                  data: {
+                      video_id: video_id,
+                      list_frame: JSON.stringify(list_frame) // Chuyển đổi list_frame thành chuỗi JSON
+                  },
+                  success: function(response) {
+                    // Ẩn video id, list frame và nút "Delete Noise"
+                    container.hide();
+                    //videoIdSpan.hide();
+                   // deleteNoiseBtn.hide();
+
+
+                    // Lấy tất cả các video id và nút "Delete Noise" cùng cấp
+                    var siblings = videoIdSpan.add(deleteNoiseBtn).add(videoIdSpan.siblings()).add(deleteNoiseBtn.siblings());
+
+                    // Đẩy chúng lên trên
+                    siblings.prependTo(container);
+                    // Xử lý kết quả từ máy chủ (nếu cần)
+                    console.log(response);
+                  },
+                  error: function(error) {
+                      // Xử lý lỗi nếu có
+                      console.error(error);
+                  }
+              });
+
+              // Loại bỏ nút "Delete Noise" sau khi đã xử lý
+              $(this).remove();
+            });
+
+            
           }
 
         function mouseOver(id){
@@ -885,7 +964,12 @@
             // console.log('type: ' + typeof(btn_knn))
             btn_knn[id].style.display="none";
             btn_select[id].style.display="none";
-        }        
+        }     
+        function handleKeyPress(event) {
+          if (event.keyCode === 13) {
+            search();
+          }
+        }   
 ////////////////////////////// PREVIOUS - NEXT IMAGE & SHOW IMAGE /////////////////////////////////
         // Mở cửa sổ phóng to và hiển thị ảnh        
         function openModal(idx, i) {
@@ -1020,44 +1104,7 @@
             alert("write list shot: " + my_alert);
         }
 
-////////////////////////////// DELETE NOISE - GET CHECKBOX /////////////////////////////////
-        // Lấy tất cả các checkbox
-        const checkboxes = document.querySelectorAll('input[type="checkbox"]');
-
-        // Lặp qua từng checkbox và thêm sự kiện "change" để bắt sự kiện thay đổi
-        checkboxes.forEach((checkbox) => {
-            checkbox.addEventListener('change', function() {
-                // Kiểm tra xem checkbox có được chọn không
-                if (this.checked) {
-                    // Lấy giá trị của video ID
-                    const videoId = this.parentElement.querySelector('.video-id').textContent;
-
-                    // Gửi giá trị videoId về cho backend để xử lý
-                    sendDataToBackend(videoId);
-                }
-            });
-        });
-
-        // Hàm để gửi dữ liệu về cho backend
-        function sendDataToBackend(videoId) {
-            // Sử dụng AJAX hoặc Fetch API để gửi dữ liệu về cho backend
-            // Ví dụ sử dụng Fetch API:
-            fetch('/your-backend-endpoint', {
-                method: 'POST', // Hoặc 'GET' tùy theo yêu cầu của bạn
-                body: JSON.stringify({ videoId }), // Gửi videoId dưới dạng JSON
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            })
-            .then((response) => response.json())
-            .then((data) => {
-                // Xử lý phản hồi từ backend (nếu cần)
-                console.log(data);
-            })
-            .catch((error) => {
-                console.error('Lỗi khi gửi dữ liệu về backend:', error);
-            });
-        }
+////////////////////////////// DELETE NOISE - GET CHECKBOX /////////////////////////////////S
 
 ////////////////////////////// VISUALIZE /////////////////////////////////
         function visualize(){
@@ -1111,72 +1158,66 @@
 
 ////////////////////////////// SUBMIT RESULT /////////////////////////////////
         function submit_btn(){
-            // window.location.href = "dowload_submit_file?filename=submit.csv"
-            $.ajax({
-                type: "GET",
-                url: "get_first_row",
-                dataType: "json",
-                success: function(data) {
-                    if(data["video_id"] != "None"){
-                      $.ajax({
-                        url: "https://eventretrieval.one/api/v1/submit?item="+data.video_id+"&frame="+data.frame_id+"&session=node0a0yuwswfadu2mjgfwcpzqzo744", 
-                        type: "GET",
-                        dataType: "json", 
-                        success: function(result){
-                          alert(result.description);
-                        },
-                        error: function(error){
-                          var status=error.status;
-                          if(status == 412){
-                            alert("Duplicate or Wrong Format");
-                          }else if(status == 401){
-                            alert("Unauthorized Error");
-                          }
+          // window.location.href = "dowload_submit_file?filename=submit.csv"
+          $.ajax({
+              type: "GET",
+              url: "get_first_row",
+              dataType: "json",
+              success: function(data) {
+                  if(data["video_id"] != "None"){
+                    $.ajax({
+                      url: "https://eventretrieval.one/api/v1/submit?item="+data.video_id+"&frame="+data.frame_id+"&session=node0190ximxd4yeuv1cbb9xgswwbt934", 
+                      type: "GET",
+                      dataType: "json", 
+                      success: function(result){
+                        alert(result.description);
+                      },
+                      error: function(error){
+                        var status=error.status;
+                        if(status == 412){
+                          alert("Duplicate or Wrong Format");
+                        }else if(status == 401){
+                          alert("Unauthorized Error");
                         }
-                        });
-                    }else{
-                      alert("Video None")
-                    }
-                },
-                error: function(xhr, ajaxOptions, thrownError) {
-                    alert("Status: " + xhr.status + "     Error: " + thrownError);
-                }
-            });
+                      }
+                      });
+                  }else{
+                    alert("Video None")
+                  }
+              },
+              error: function(xhr, ajaxOptions, thrownError) {
+                  alert("Status: " + xhr.status + "     Error: " + thrownError);
+              }
+          });
         }
 
 ////////////////////////////// SEARCH TO IMAGE /////////////////////////////////     
         function readURL(input) {
           if (input.files && input.files[0]) {
-
-            var reader = new FileReader();
-
-            reader.onload = function(e) {
-              $('.image-upload-wrap').hide();
-
-              $('.file-upload-image').attr('src', e.target.result);
-              $('.file-upload-content').show();
-
-              $('.image-title').html(input.files[0].name);
-            };
-
-            reader.readAsDataURL(input.files[0]);
-
+              var reader = new FileReader();
+              reader.onload = function(e) {
+                  $('.image-upload-wrap').hide();
+                  $('.file-upload-image').attr('src', e.target.result);
+                  $('.file-upload-content').show();
+                  $('.image-title').html(input.files[0].name);
+                  window.location.href = "/img2imgs?imgname=" + input.files[0].name + "&topk=" + top_k;
+              };
+              reader.readAsDataURL(input.files[0]);
           } else {
-            removeUpload();
+              removeUpload();
           }
-         }
+        }
 
-         function removeUpload() {
+        function removeUpload() {
           $('.file-upload-input').replaceWith($('.file-upload-input').clone());
           $('.file-upload-content').hide();
           $('.image-upload-wrap').show();
-         }
-         $('.image-upload-wrap').bind('dragover', function () {
-            $('.image-upload-wrap').addClass('image-dropping');
-          });
-          $('.image-upload-wrap').bind('dragleave', function () {
-            $('.image-upload-wrap').removeClass('image-dropping');
-         });
+        }
+
+        function submitForm() {
+          document.getElementById("your_form_id").method = "POST";
+          document.getElementById("your_form_id").submit();
+        }
     </script>
 </body>
 </html> 
