@@ -1,23 +1,25 @@
 from flask import Flask, render_template, Response, request, send_file, jsonify
 import cv2
 import os
-os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
-import numpy as np
-from utils.nlp_processing import Translation
-import pandas as pd
-import json
-from pathlib import Path
-from posixpath import join
-import faiss
-from langdetect import detect
-from utils.faiss_processing import write_csv, extract_feats_from_bin, save_feats_to_bin,\
-    load_json_file,load_bin_file,mapping_index, search_tags, get_all_ids
-from utils.submit import write_csv, show_csv
-from sentence_transformers import SentenceTransformer, util
-from utils.ocr_processing import fill_ocr_results, fill_ocr_df
 import torch
 import sys
-import os
+import pandas as pd
+import json
+import faiss
+import numpy as np
+os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
+# from utils.nlp_processing import Translation
+from utils.translate_vi2en import translate_vi2en
+from pathlib import Path
+from posixpath import join
+from langdetect import detect
+from utils.faiss_processing import write_csv, extract_feats_from_bin, save_feats_to_bin, get_id2index, \
+    load_json_file,load_bin_file,mapping_index, search_tags, get_all_ids, remove_keys_and_save, search_image2image, \
+    searchcontinues, read_index_file, save_bin_delete_noise
+from utils.submit import write_csv, show_csv
+# from sentence_transformers import SentenceTransformer, util
+# from utils.ocr_processing import fill_ocr_results, fill_ocr_df
+
 from utils.group_keyframes import convertArray 
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -34,14 +36,23 @@ from lavis.models import load_model_and_preprocess
 app = Flask(__name__, template_folder='templates')
 
 # Faiss
-# bin_file='dict/faiss_blip_v1_cosine.bin'
-json_path = 'dict/keyframes_id.json'
-json_id2img_path = 'dict/dict_image_path_id2img.json'
-json_img2id_path = 'dict/dict_image_path_img2id.json'
-json_keyframe2id = 'dict/keyframe_path2id.json'
-json_keyframe2path = 'dict/keyframe_id2path.json'
+bin_file='dict/faiss_blip_v1_cosine.bin'
+json_path = 'dict/dict_path/keyframes_id.json'
+json_id2img_path = 'dict/dict_path/dict_image_path_id2img.json'
+json_img2id_path = 'dict/dict_path/dict_image_path_img2id.json'
+json_keyframe2id = 'dict/dict_path/keyframe_path2id.json'
+json_keyframe2path = 'dict/dict_path/keyframe_id2path.json'
 file_path = 'search_continues/list_index_search_continues.txt'
 
+################# LOAD FILE BIN ##################        
+faiss_model = load_bin_file(bin_file)
+
+############## MODEL BLIP #################
+__device = "cuda" if torch.cuda.is_available() else "cpu"
+model, vis_processors_blip, text_processors_blip = load_model_and_preprocess("blip_image_text_matching", 
+                                                                                      "base", 
+                                                                                      device=__device, 
+                                                                                      is_eval=True)
 # with open("dict/info_ocr.txt", "r", encoding="utf8") as fi:
 #     ListOcrResults = list(map(lambda x: x.replace("\n",""), fi.readlines()))
 
@@ -62,11 +73,8 @@ with open(json_keyframe2path, 'r') as f:
 with open(json_keyframe2id, 'r') as f:
     DictKeyframe2Id = json.loads(f.read())
 
-   
 LenDictPath = len(load_json_file(json_path))
 DictImagePath = load_json_file(json_path)
-# BERT
-# MyBert = BERTSearch(dict_bert_search='dict/keyframes_id_bert.json', bin_file='dict/faiss_bert.bin', mode='search')
 
 ######################### HOME PAGE ########################################
 @app.route('/thumbnailimg')
@@ -89,6 +97,19 @@ def thumbnailimg():
     old_temp_path = Path(temp_txt_path)
     if old_temp_path.is_file():
         os.remove(old_temp_path)
+        
+    objs_path = Path('search_continues/objs.csv')
+    if objs_path.is_file():
+        os.remove(objs_path)
+        
+    if os.path.exists('search_continues/after_rm_noise.bin'):
+        os.remove('search_continues/after_rm_noise.bin')
+
+    if os.path.exists('search_continues/after_rm_noise_idx.txt'):
+        os.remove('search_continues/after_rm_noise_idx.txt')
+    
+    if os.path.exists('search_continues/after_dict_rm_noise.json'):
+        os.remove('search_continues/after_dict_rm_noise.json')
         
     # bin_file = 'dict/faiss_blip_v1_cosine.bin'
     print("LenDictPath: ", LenDictPath)
@@ -182,53 +203,45 @@ def image_search():
     print("image search")
     pagefile = []
     id_query = int(request.args.get('imgid'))
+    
+    print('imgid: ', id_query)
     k = request.args.get('topk')
     k = int(k[3:])
-        
-    temp_faiss_path = join("search_continues", "temp_faiss.bin")
-    faiss_path = Path(temp_faiss_path)
-    if faiss_path.is_file():
-        print("continue searchinggg................................................................")
-        bin_file = 'search_continues/temp_faiss.bin'
-        
-    else:
-        bin_file = 'dict/faiss_blip_v1_cosine.bin' 
-        
-    index = load_bin_file(bin_file)
-    query_feats = index.reconstruct(id_query).reshape(1,-1)
-    
-    scores, idx_image = index.search(query_feats, k=k)
-    idx_image = idx_image.flatten()
-    scores = scores.flatten()
     
     # Check search continues
-    temp_txt_path = join("search_continues", "list_index_search_continues.txt")
-    txt_path = Path(temp_txt_path)
-    if txt_path.is_file(): 
-        # Đọc dữ liệu từ tệp tin
-        with open('search_continues/list_index_search_continues.txt', 'r') as file:
-            data_str = file.read()
-        data_list = data_str.split()
-        data_array = [int(num) for num in data_list]
-        idx_image = mapping_index(data_array, idx_image)
+    after_rm_noise_path = Path('search_continues/after_rm_noise.bin')
+    faiss_path = Path('search_continues/temp_faiss.bin')
     
+    if os.path.exists('search_continues/after_rm_noise_idx.txt'):
+        index_file = 'search_continues/after_rm_noise_idx.txt'
+        save_bin_delete_noise(bin_file, index_file, 'search_continues/after_rm_noise.bin')
+    
+    if after_rm_noise_path.is_file(): # Mức độ ưu tiên của file bin search: after_rm_noise --> temp_faiss --> file bin gốc
+        print("continue searchingggg after delete noiseeee....................................")
+        new_file_bin = 'search_continues/after_rm_noise.bin'
+        index_file = 'search_continues/after_rm_noise_idx.txt'
+        scores, idx_images = searchcontinues(new_file_bin, index_file, k, id_query=id_query)
+    elif faiss_path.is_file():
+        print("continue searchinggg...........................................................")
+        new_file_bin = 'search_continues/temp_faiss.bin'
+        index_file = "search_continues/list_index_search_continues.txt"
+        scores, idx_images = searchcontinues(new_file_bin, index_file, k, id_query=id_query)
+    else:
+        scores, idx_images = faiss_model.search(id_query, k=k)
+        # idx_images = idx_images.flatten()
+        scores = scores.flatten()
+        
     id2img_fps = DictImagePath
-    infos_query = list(map(id2img_fps.get, list(idx_image)))
+    infos_query = list(map(id2img_fps.get, list(idx_images)))
     image_paths = [info['image_path'] for info in infos_query]
     scores = np.array(scores, dtype=np.float32).tolist()
     
-    print("searching.......")
     imgperindex = 100 
 
-    for imgpath, id, score in zip(image_paths, idx_image, scores):
+    for imgpath, id, score in zip(image_paths, idx_images, scores):
         pagefile.append({'imgpath': imgpath, 'id': int(id), 'score':score})
-    print("searching.........")
     
     pagefile_new = convertArray(pagefile)
-    # print(pagefile_new)
-    # Ghi dữ liệu vào file txt
-    # with open('dict/data_test.txt', 'w') as file:
-    #     json.dump(pagefile_new, file)
     data = {'num_page': int(LenDictPath/imgperindex)+1, 'pagefile': pagefile_new}
     
     return render_template('index_thumb1.html', data=data)
@@ -240,65 +253,53 @@ def text_search():
     k = str(request.args.get('topk'))
     k = int(k[3:])
     
-    temp_faiss_path = join("search_continues", "temp_faiss.bin")
-    faiss_path = Path(temp_faiss_path)
-    if faiss_path.is_file():
-        print("continue searchinggg................................................................")
-        bin_file = 'search_continues/temp_faiss.bin'
-        
-    else:
-        bin_file = 'dict/faiss_blip_v1_cosine.bin'
-        
     pagefile = []
     text_query = request.args.get('textquery')
-    index = load_bin_file(bin_file)
-    
     
     if detect(text_query) == 'vi':
-        translater = Translation()
-        text = translater(text_query)
+        # translater = Translation()
+        # text = translater(text_query)
+        text = translate_vi2en(text_query)
     else:
         text = text_query
 
-    __device = "cuda" if torch.cuda.is_available() else "cpu"
-    # self.model, preprocess = clip.load("ViT-B/16", device=self.__device)
-    model, vis_processors_blip, text_processors_blip = load_model_and_preprocess("blip_image_text_matching", 
-                                                                                      "base", 
-                                                                                      device=__device, 
-                                                                                      is_eval=True)
-    
     ###### TEXT FEATURES EXACTING ######
-    # text = clip.tokenize([text]).to(__device)  
-    # text_features = self.model.encode_text(text).cpu().detach().numpy().astype(np.float32)
     txt = text_processors_blip["eval"](text)
     text_features = model.encode_text(txt, __device).cpu().detach().numpy()
-
+     
+    ##### CHECK SEARCH CONTINUES #####
+    after_rm_noise_path = Path('search_continues/after_rm_noise.bin')
+    faiss_path = Path('search_continues/temp_faiss.bin')
     ###### SEARCHING #####
-    scores, idx_image = index.search(text_features, k=k)
-    idx_image = idx_image.flatten()
-    scores = scores.flatten()
-    
-    # Check search continues
-    temp_txt_path = join("search_continues", "list_index_search_continues.txt")
-    txt_path = Path(temp_txt_path)
-    if txt_path.is_file(): 
-        # Đọc dữ liệu từ tệp tin
-        with open('search_continues/list_index_search_continues.txt', 'r') as file:
-            data_str = file.read()
-        data_list = data_str.split()
-        data_array = [int(num) for num in data_list]
-        idx_image = mapping_index(data_array, idx_image)
-            
+    if os.path.exists('search_continues/after_rm_noise_idx.txt'):
+        index_file = 'search_continues/after_rm_noise_idx.txt'
+        save_bin_delete_noise(bin_file, index_file, 'search_continues/after_rm_noise.bin')
+        
+    if after_rm_noise_path.is_file(): # Mức độ ưu tiên của file bin search: after_rm_noise --> temp_faiss --> file bin gốc
+        print("continue searchingggg after delete noiseeee....................................")
+        new_file_bin = 'search_continues/after_rm_noise.bin'
+        index_file = 'search_continues/after_rm_noise_idx.txt'
+        scores, idx_images = searchcontinues(new_file_bin, index_file, k, text_features=text_features)
+    elif faiss_path.is_file():
+        print("continue searchinggg...........................................................")
+        new_file_bin = 'search_continues/temp_faiss.bin'
+        index_file = "search_continues/list_index_search_continues.txt"
+        scores, idx_images = searchcontinues(new_file_bin, index_file, k, text_features=text_features)
+    else:
+        scores, idx_images = faiss_model.search(text_features, k=k)
+        idx_images = idx_images.flatten()
+        scores = scores.flatten()
+
     ###### GET INFOS KEYFRAMES_ID ######
     id2img_fps = DictImagePath
-    infos_query = list(map(id2img_fps.get, list(idx_image)))
+    infos_query = list(map(id2img_fps.get, list(idx_images)))
     image_paths = [info['image_path'] for info in infos_query]
     
     imgperindex = 100 
     scores = np.array(scores, dtype=np.float32).tolist()
     # print(scores)
 
-    for imgpath, id, score in zip(image_paths, idx_image, scores):
+    for imgpath, id, score in zip(image_paths, idx_images, scores):
         pagefile.append({'imgpath': imgpath, 'id': int(id), 'score':score})
     pagefile_new = convertArray(pagefile)
     # print(pagefile_new)
@@ -307,30 +308,40 @@ def text_search():
     return render_template('index_thumb1.html', data=data)
 
 ####################### CONTINUES SEARCHINGGGG ####################
-@app.route('/searchcontinues')
+@app.route('/searchcontinues', methods=['POST'])
 def search_continues():
     data = request.get_json()
-    # print(data)
     pagefile = data['pagelist']
-    # print(pagefile)
-    # list_frames = pagefile['list_frame']
-    # video_id = pagefile['video_id']
     
     # Sử dụng hàm để lấy danh sách tất cả các ID
-    ids = get_all_ids(pagefile)
-    print(ids)
+    indexs = get_all_ids(pagefile)
+    print(indexs)
     
     new_bin_file = './search_continues/temp_faiss.bin'
-    # print(ids)
-    # exit()
-    bin_file = 'dict/faiss_blip_v1_cosine.bin'
-    ids, feats = extract_feats_from_bin(bin_file, ids)
+    new_list_idx_for_bin = './search_continues/list_index_search_continues.txt'
+    # bin_file = 'dict/faiss_blip_v1_cosine.bin'
+    
+    if Path(new_list_idx_for_bin).is_file():
+        data_array = read_index_file(new_list_idx_for_bin)
+        ids = get_id2index(data_array) ## get index for index_list
+        print(ids)
+        feats = extract_feats_from_bin(bin_file, ids)
+    else:
+        feats = extract_feats_from_bin(bin_file, indexs)
     
     # savefile sub bin and idx of frames
-    save_feats_to_bin(ids, feats, new_bin_file)
+    save_feats_to_bin(indexs, feats, new_bin_file, new_list_idx_for_bin)
+
+    after_rm_noise_path = Path('search_continues/after_rm_noise.bin')
+    after_rm_noise_txt_path = Path('search_continues/after_rm_noise_idx.txt')
+    if after_rm_noise_txt_path.is_file():
+        os.remove(after_rm_noise_txt_path)
+    if after_rm_noise_path.is_file():
+        os.remove(after_rm_noise_path)
+        
     print('Saved new bin file')
 
-######################### GET FRAMES NEIGHBOR ##############################
+######################### GET FRAMES NEIGHTBOR ##############################
 @app.route('/neighborsearch')
 def neightbor_search():
     print('neightbor frame search')
@@ -378,40 +389,20 @@ def search_for_tags():
     print("search for tags...")
     k = str(request.args.get('topk'))
     k = int(k[3:])
-    
-    temp_faiss_path = join("search_continues", "temp_faiss.bin")
-    faiss_path = Path(temp_faiss_path)
-    if faiss_path.is_file():
-        print("continue searchinggg................................................................")
-        bin_file = 'search_continues/temp_faiss.bin'
-        
-    else:
-        bin_file = 'dict/faiss_blip_v1_cosine.bin'
 
     pagefile = []
     text_query = request.args.get('text_for_tags')
 
-    csv_file = 'dict/object_final.csv'
+    if Path('search_continues/objs.csv').is_file():
+        csv_file = 'search_continues/objs.csv'
+    else:
+        csv_file = 'dict/object_final.csv'
+        
     text_query = str(text_query)
     print(text_query)
     
-    idx_images, image_paths = search_tags(csv_file, text_query)
-    # print(idx_image)
-
-    imgperindex = 100 
-
-    # scores = scores.flatten()
-    
-    # Check search continues
-    temp_txt_path = join("search_continues", "list_index_search_continues.txt")
-    txt_path = Path(temp_txt_path)
-    if txt_path.is_file(): 
-        # Đọc dữ liệu từ tệp tin
-        with open('search_continues/list_index_search_continues.txt', 'r') as file:
-            data_str = file.read()
-        data_list = data_str.split()
-        data_array = [int(num) for num in data_list]
-        idx_images = mapping_index(data_array, idx_images)
+    objs, idx_images, image_paths = search_tags(csv_file, text_query)
+    objs.to_csv('search_continues/objs.csv', index=False)  # index=False để không lưu cột index
     
     imgperindex = 100 
 
@@ -423,6 +414,41 @@ def search_for_tags():
     data = {'num_page': int(LenDictPath/imgperindex)+1, 'pagefile': pagefile_new}
     
     return render_template('index_thumb1.html', data=data)
+
+########################## DELETE VIDEO ID NOISE #########################
+@app.route('/delete_noise', methods=['POST'])
+def delete_noise():
+    # Nhận dữ liệu từ yêu cầu POST
+    video_id = request.form.get('video_id')
+    print(video_id)
+    list_frame_json = request.form.get('list_frame')
+
+    # Tiến hành xóa nhiễu hoặc thực hiện các tác vụ khác ở đây
+    # new_bin_path = 'search_continues/after_rm_noise.bin'
+    new_list_idx_path = 'search_continues/after_rm_noise_idx.txt'
+    new_dict_path = 'search_continues/after_dict_rm_noise.json'
+    
+    if os.path.exists(new_dict_path):
+        ids, new_dict = remove_keys_and_save(video_id, new_dict_path)
+    else:
+        ids, new_dict = remove_keys_and_save(video_id, json_keyframe2id)
+        
+    with open(new_list_idx_path, 'w') as output_file:
+        json.dump(ids, output_file)
+    with open(new_dict_path, 'w') as output:
+        json.dump(new_dict, output)
+    # bin_file = 'dict/faiss_blip_v1_cosine.bin'
+    # ids, feats = extract_feats_from_bin(bin_file, ids)
+    
+    # # savefile sub bin and idx of frames
+    # index = faiss.IndexFlatIP(256)
+    # index.add(feats)
+    # faiss.write_index(index, new_bin_path)
+    # print('Saved new bin file')
+    
+
+    # Trả về phản hồi (nếu cần)
+    return 'Success: Saved delete noiseee!!!', 200
 
 ########################## WRITE CSV #########################################
 @app.route('/writecsv')
@@ -503,6 +529,7 @@ def getFirstRowOfCsv():
     }
     if os.path.exists(csv_path):
         lst_frame = show_csv(csv_path)[0]
+        print(lst_frame)
         video_id, frame_id = lst_frame.split("/")[-2:]
         result["video_id"] = video_id
         result["frame_id"] = int(frame_id[:-4])
@@ -568,24 +595,40 @@ def visualize():
     
 #     return render_template('index_thumb.html', data=data)
 
-
-@app.route('/', methods=['GET', 'POST'])
+from PIL import Image
+@app.route('/img2imgs', methods=['GET', 'POST'])
 def index():
 
+    directory_path = "search_continues/uploaded/"
     if request.method == 'POST':
         file = request.files['query_img']
 
-        # # Save query image
-        # img = Image.open(file.stream)  # PIL image
-        # uploaded_img_path = "static/uploaded/" + datetime.now().isoformat().replace(":", ".") + "_" + file.filename
-        # img.save(uploaded_img_path)
+        # Save query image
+        img = Image.open(file.stream)  # PIL image
+        if not os.path.exists(directory_path):
+            os.makedirs(directory_path)
+        uploaded_img_path = directory_path + file.filename
+        img.save(uploaded_img_path)
 
-        # result, presicion = search_and_evalution(uploaded_img_path)
+        idx_image, scores = search_image2image(uploaded_img_path, )
         # Lấy kết quả và gửi đến html
+        id2img_fps = DictImagePath
+        infos_query = list(map(id2img_fps.get, list(idx_image)))
+        image_paths = [info['image_path'] for info in infos_query]
+        scores = np.array(scores, dtype=np.float32).tolist()
         
-        return render_template('index_thumb1.html')
-    else:
-        return render_template('index_thumb1.html')
+        print("searching.......")
+        imgperindex = 100 
+        pagefile = []
+
+        for imgpath, id, score in zip(image_paths, idx_image, scores):
+            pagefile.append({'imgpath': imgpath, 'id': int(id), 'score':score})
+        print("searching.........")
+        
+        pagefile_new = convertArray(pagefile)
+        data = {'num_page': int(LenDictPath/imgperindex)+1, 'pagefile': pagefile_new}
+    
+        return render_template('index_thumb1.html', data=data)
 
 if __name__ == '__main__':
     submit_dir = "submission"
