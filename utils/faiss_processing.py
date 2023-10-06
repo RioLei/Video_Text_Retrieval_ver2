@@ -10,7 +10,7 @@ import json
 import matplotlib.pyplot as plt
 import os
 import math
-from utils.nlp_processing import Translation
+# from utils.nlp_processing import Translation
 # import clip
 import torch
 import pandas as pd
@@ -199,7 +199,19 @@ def load_json_file(json_path: str):
     
 def load_bin_file(bin_file: str):
     return faiss.read_index(bin_file)
-  
+
+################################################################  
+## SEARCH IMAGE PATH - KEYFRAME ID   
+################################################################  
+def search_by_keyframeid(bin_file, id_query):
+    index = load_bin_file(bin_file)
+    query_feats = index.reconstruct(id_query).reshape(1,-1)
+      
+    scores, idx_image = index.search(query_feats, k=k)     
+    idx_image = idx_image.flatten()
+    scores = scores.flatten()
+    return idx_image, scores
+################################################################
 def write_csv(infos_query, des_path):
     check_files = []
     
@@ -235,30 +247,43 @@ def write_csv(infos_query, des_path):
     else:
       print('Exceed the allowed number of lines')
 
+############# GET SUB .BIN ###################### 
+def get_id2index(index_list):
+  indices = []
+  for index, value in enumerate(index_list):
+    indices.append(index)
+  return indices
+
+def read_index_file(index_file):
+  with open(index_file, 'r') as file:
+      data_str = file.read()
+  if ("[" in data_str and "]" in data_str):
+    data_str =  data_str.replace("[", "").replace("]", "")
+            
+  data_list = data_str.split(", ")
+  data_array = [int(num) for num in data_list]
   
+  return data_array
+
 def extract_feats_from_bin(bin_file, idx_image):
     index = faiss.read_index(bin_file)
     feats = []
-    ids = []
-
+    
     for idx in idx_image:
         # print(idx)
         feat = index.reconstruct(idx)
         feats.append(feat)
-        ids.append(idx)
 
     feats = np.vstack(feats)
-    return ids, feats
-
-# import numpy as np
+    return feats
    
-def save_feats_to_bin(ids, feats, output_bin_path):
+def save_feats_to_bin(ids, feats, output_bin_path, output_idx_list):
     index = faiss.IndexFlatIP(256)
     index.add(feats)
     faiss.write_index(index, output_bin_path)
-    arr_idx = ' '.join(str(id) for id in ids)
+    arr_idx = ', '.join(str(id) for id in ids)
     # Ghi chuỗi vào tệp tin
-    with open('search_continues/list_index_search_continues.txt', 'w') as file:
+    with open(output_idx_list, 'w') as file:
         file.write(arr_idx)
     print('done')
 
@@ -268,6 +293,77 @@ def mapping_index(a, b):
         mapped_array.append(a[index])
     return mapped_array
 
+def searchcontinues(bin_file, index_file, k, id_query=None, text_features=None):
+  faiss_model = load_bin_file(bin_file)
+  
+  data_array = read_index_file(index_file)
+
+  if id_query is not None: # search by keyframe id
+    query_feats = faiss_model.reconstruct(id_query).reshape(1,-1)
+    scores, idx_images = faiss_model.search(query_feats, k=k)    
+    
+  elif text_features is not None: # search by text - BLIP search
+    scores, idx_images = faiss_model.search(text_features, k=k)
+    # print('--------------------------------------------------------------')
+    
+    # print(idx_images) ## --> trả về vị trí (index)
+
+  scores = scores.flatten()
+  idx_images = idx_images.flatten()
+  idx_images = mapping_index(data_array, idx_images) 
+  # print('================================================================')
+  # print(idx_images)  ## --> trả về giá trị (value)
+  
+  return scores, idx_images
+
+# Hàm để lấy tất cả các ID  
+def get_all_ids(data):
+    ids = []
+    for item in data:
+        if 'list_frame' in item and isinstance(item['list_frame'], list):
+            for frame in item['list_frame']:
+                if 'id' in frame:
+                    ids.append(frame['id'])
+
+    return ids
+  
+def save_bin_delete_noise(binfile, index_file, new_bin_path):
+  index_list = read_index_file(index_file)
+  ids = get_id2index(index_list)
+  
+  # for i in range(0, len(ids)):
+  #   print('index_list: ',index_list[i])
+  #   print('ids: ',ids[i])
+  
+  feats = extract_feats_from_bin(binfile, ids)
+
+  # savefile sub bin and idx of frames
+  index = faiss.IndexFlatIP(256)
+  index.add(feats)
+  faiss.write_index(index, new_bin_path)
+  
+############### REMOVE VIDEO ID NOISE ################  
+import json
+
+def remove_keys_and_save(input_video_id, json_file_path):
+    # Đọc dữ liệu từ tệp JSON ban đầu
+    with open(json_file_path, 'r') as json_file:
+        data = json.load(json_file)
+    
+    # Tạo một bản sao của dữ liệu JSON để tránh ảnh hưởng đến dữ liệu gốc
+    new_data = dict(data)
+    
+    # Xóa các key chứa video id đầu vào
+    for key in list(new_data.keys()):
+        if input_video_id in key:
+            del new_data[key]
+    
+    # print(new_data)
+    # Lưu dữ liệu mới vào tệp txt
+    values = [int(value) for value in list(new_data.values())]
+    return values, new_data
+
+###############  SEARCH TAGS  ################################
 # lấy những row có giá trị trong cột obj >= số lượng nhập vào (ví dụ: 1 man, 2 woman --> lấy ra những thằng
 #     có cột man >= 1 và cột woman >=2)
 def search_tags(csv_filename, obj_query):
@@ -289,30 +385,23 @@ def search_tags(csv_filename, obj_query):
     mask = pd.concat(conditions, axis=1).all(axis=1)
 
     # Lấy ra các dòng thỏa mãn điều kiện và chỉ các cột cần thiết
-    columns_to_select = ['index', 'img_paths'] + input_columns
-    df_new = df.loc[mask, columns_to_select]
+    # columns_to_select = ['index', 'img_paths'] + input_columns
+    # df_new = df.loc[mask, columns_to_select]
+    df_new = df.loc[mask]
     list_index = df_new['index']
     img_paths = df_new['img_paths']
 
-    return list_index, img_paths
+    return df_new, list_index, img_paths
 
-# Hàm để lấy tất cả các ID  
-def get_all_ids(data):
-    ids = []
-    for item in data:
-        if 'list_frame' in item and isinstance(item['list_frame'], list):
-            for frame in item['list_frame']:
-                if 'id' in frame:
-                    ids.append(frame['id'])
-
-    return ids
 
 
 ########################################################################################## 
-
+###               SEARCH IMAGE 2 IMAGES
 ############################################################################################
 import sys
 import os
+import torch
+from PIL import Image
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 
@@ -322,6 +411,23 @@ lavis_dir = os.path.join(current_dir, 'LAVIS')
 # Thêm đường dẫn tương đối của thư mục LAVIS vào sys.path
 sys.path.append(lavis_dir)
 from lavis.models import load_model_and_preprocess
+
+def search_image2image(img_path, bin_file):
+  raw_image = Image.open(img_path).convert("RGB")
+  device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+  model, vis_processors, txt_processors = load_model_and_preprocess(name="blip_feature_extractor", model_type="base", is_eval=True, device=device)
+  image = vis_processors["eval"](raw_image).unsqueeze(0).to(device)
+  sample = {"image": image}
+  query_feats = model.extract_features(sample, mode="image").reshape(1,-1)
+  
+  index = load_bin_file(bin_file)
+  
+  scores, idx_image = index.search(query_feats, k=k)     
+  idx_image = idx_image.flatten()
+  scores = scores.flatten()
+  
+  return idx_image, scores
+
 
 # create_file = File4Faiss('Database')
 # create_file.write_bin_file(bin_path='./dict/', json_path='./dict/keyframes_id.json', method='cosine', feature_shape=768) # Bert model
