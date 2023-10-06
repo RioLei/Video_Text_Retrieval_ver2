@@ -401,7 +401,7 @@
             }            
 
             .container_list_img {
-              width: 100%;
+              width: 98.5%;
             } 
 
             
@@ -645,13 +645,11 @@
             </select>
 
           </div>
-          <!-- {# form file submit#} -->
-          <form method="POST" enctype="multipart/form-data">
-              <div class="file-upload">
-                <button class="custom-btn btn-5" id="add_img_btn" type="button" onclick="$('.file-upload-input').trigger( 'click' )">Add Image</button>
-                <button type="submit" class="custom-btn btn-5" style="position: absolute;
-                right: 4px;
-                top: 40%;">Search</button>
+          
+          <form method="POST" enctype="multipart/form-data" id="your_form_id">
+            <div class="file-upload">
+                <button class="custom-btn btn-5" id="add_img_btn" type="button" onclick="$('.file-upload-input').trigger('click')">Add Image</button>
+                <button type="button" class="custom-btn btn-5" style="position: absolute; right: 4px; top: 40%;" onclick="submitForm()">Search</button>
                 <div class="image-upload-wrap">
                     <input class="file-upload-input" type="file" name="query_img" onchange="readURL(this);" accept="image/*" />
                     <div class="drag-text">
@@ -660,14 +658,12 @@
                 </div>
                 <div class="file-upload-content">
                     <img class="file-upload-image" src="#" alt="your image" />
-
                     <div class="image-title-wrap">
                         <button type="button" onclick="removeUpload()" class="remove-image">Remove</button>
                     </div>
                 </div>
-                
             </div>
-          </form>
+        </form>
         
 
         </div>
@@ -688,8 +684,8 @@
         <span class="group_btn">
           <button class="custom-btn btn-5" onclick="search_continues();"><span>Keep</span></button>
           <button class="custom-btn btn-5" onclick="reset()"><span>Clear</span></button>
-          <!-- <button class="custom-btn btn-5" onclick="submit_btn()"><span>Submit</span></button> -->
           <button class="custom-btn btn-5" onclick="download_btn()"><span>Dowload</span></button>
+          <button class="custom-btn btn-5" onclick="submit_btn()"><span>Submit</span></button>
         </span>
 
       </div>
@@ -873,6 +869,12 @@
             btn_knn[id].style.display="none";
             btn_select[id].style.display="none";
         }        
+
+        function handleKeyPress(event) {
+          if (event.keyCode === 13) {
+            search();
+          }
+        }
 ////////////////////////////// PREVIOUS - NEXT IMAGE & SHOW IMAGE /////////////////////////////////          
         // Mở cửa sổ phóng to và hiển thị ảnh
         function openModal(idx, i) {
@@ -927,6 +929,7 @@
             const modal = document.getElementById("myModal");
             modal.style.display = "none";
         }
+
 
 ////////////////////////////// SEARCH IMG ID /////////////////////////////////        
         function go_img_search(id){
@@ -1071,7 +1074,7 @@
                 success: function(data) {
                     if(data["video_id"] != "None"){
                       $.ajax({
-                        url: "https://eventretrieval.one/api/v1/submit?item="+data.video_id+"&frame="+data.frame_id+"&session=node0a0yuwswfadu2mjgfwcpzqzo744", 
+                        url: "https://eventretrieval.one/api/v1/submit?item="+data.video_id+"&frame="+data.frame_id+"&session=node0190ximxd4yeuv1cbb9xgswwbt934", 
                         type: "GET",
                         dataType: "json", 
                         success: function(result){
@@ -1099,36 +1102,31 @@
 ////////////////////////////// SEARCH TO IMAGE /////////////////////////////////     
         function readURL(input) {
           if (input.files && input.files[0]) {
-
-            var reader = new FileReader();
-
-            reader.onload = function(e) {
-              $('.image-upload-wrap').hide();
-
-              $('.file-upload-image').attr('src', e.target.result);
-              $('.file-upload-content').show();
-
-              $('.image-title').html(input.files[0].name);
-            };
-
-            reader.readAsDataURL(input.files[0]);
+              var reader = new FileReader();
+              reader.onload = function(e) {
+                  $('.image-upload-wrap').hide();
+                  $('.file-upload-image').attr('src', e.target.result);
+                  $('.file-upload-content').show();
+                  $('.image-title').html(input.files[0].name);
+                  window.location.href = "/img2imgs?imgname=" + input.files[0].name + "&topk=" + top_k;
+              };
+              reader.readAsDataURL(input.files[0]);
 
           } else {
-            removeUpload();
+              removeUpload();
           }
-         }
+        }
 
-         function removeUpload() {
+        function removeUpload() {
           $('.file-upload-input').replaceWith($('.file-upload-input').clone());
           $('.file-upload-content').hide();
           $('.image-upload-wrap').show();
-         }
-         $('.image-upload-wrap').bind('dragover', function () {
-            $('.image-upload-wrap').addClass('image-dropping');
-          });
-          $('.image-upload-wrap').bind('dragleave', function () {
-            $('.image-upload-wrap').removeClass('image-dropping');
-         });
+        }
+
+        function submitForm() {
+          document.getElementById("your_form_id").method = "POST";
+          document.getElementById("your_form_id").submit();
+        }
     </script>
 </body>
 </html> 
