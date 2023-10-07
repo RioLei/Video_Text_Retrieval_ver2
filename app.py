@@ -36,12 +36,12 @@ from lavis.models import load_model_and_preprocess
 app = Flask(__name__, template_folder='templates')
 
 # Faiss
-bin_file='dict/faiss_blip_v1_cosine.bin'
-json_path = 'dict/dict_path/keyframes_id.json'
-json_id2img_path = 'dict/dict_path/dict_image_path_id2img.json'
-json_img2id_path = 'dict/dict_path/dict_image_path_img2id.json'
-json_keyframe2id = 'dict/dict_path/keyframe_path2id.json'
-json_keyframe2path = 'dict/dict_path/keyframe_id2path.json'
+bin_file='dict/faiss_blip_v1_cosine_final.bin'
+json_path = 'dict/dict_final/keyframes_id.json'
+json_id2img_path = 'dict/dict_final/dict_image_path_id2img.json'
+json_img2id_path = 'dict/dict_final/dict_image_path_img2id.json'
+json_keyframe2id = 'dict/dict_final/keyframe_path2id.json'
+json_keyframe2path = 'dict/dict_final/keyframe_id2path.json'
 file_path = 'search_continues/list_index_search_continues.txt'
 
 ################# LOAD FILE BIN ##################        
@@ -111,7 +111,7 @@ def thumbnailimg():
     if os.path.exists('search_continues/after_dict_rm_noise.json'):
         os.remove('search_continues/after_dict_rm_noise.json')
         
-    # bin_file = 'dict/faiss_blip_v1_cosine.bin'
+    # bin_file = 'dict/faiss_blip_v1_cosine_final.bin'
     print("LenDictPath: ", LenDictPath)
     
     pagefile = []
@@ -320,7 +320,7 @@ def search_continues():
     
     new_bin_file = './search_continues/temp_faiss.bin'
     new_list_idx_for_bin = './search_continues/list_index_search_continues.txt'
-    # bin_file = 'dict/faiss_blip_v1_cosine.bin'
+    # bin_file = 'dict/faiss_blip_v1_cosine_final.bin'
     
     if Path(new_list_idx_for_bin).is_file():
         data_array = read_index_file(new_list_idx_for_bin)
@@ -438,7 +438,7 @@ def delete_noise():
         json.dump(ids, output_file)
     with open(new_dict_path, 'w') as output:
         json.dump(new_dict, output)
-    # bin_file = 'dict/faiss_blip_v1_cosine.bin'
+    # bin_file = 'dict/faiss_blip_v1_cosine_final.bin'
     # ids, feats = extract_feats_from_bin(bin_file, ids)
     
     # # savefile sub bin and idx of frames
