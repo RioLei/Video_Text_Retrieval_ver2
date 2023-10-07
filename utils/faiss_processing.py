@@ -53,15 +53,19 @@ class File4Faiss:
     for kf in keyframe_paths:
       video_paths = sorted(glob.glob(f"{kf}/*"))
       # print(video_paths)
+      
+      # exit()
 
       for video_path in video_paths:
         image_paths = sorted(glob.glob(f'{video_path}/*.jpg'))
 
         ###### Get all id keyframes from video_path ######
-        id_keyframes = np.array([int(id.split('/')[-1].replace('.jpg', '')) for id in image_paths])
+        id_keyframes = np.array([int(id.replace("\\","/").split('/')[-1].replace('.jpg', '')) for id in image_paths])
         # print(id_keyframes)
+        # exit()
         
         ###### Get scenes from video_path ######
+        video_path = video_path.replace('\\','/')
         video_info = video_path.split('/')[-1]
         # print(video_info)
         # exit()
@@ -71,7 +75,10 @@ class File4Faiss:
         lst_range_shotes = np.array([re.sub('\[|\]', '', line).strip().split(' ') for line in lst_range_shotes]) #.astype(np.uint32)
 
         for im_path in image_paths:
+          # print(im_path)
+          # exit()
           # im_path = 'Database/' + '/'.join(im_path.split('/')[-3:])
+          im_path = im_path.replace("\\","/")
           id = int(im_path.split('/')[-1].replace('.jpg', ''))
           # print(im_path)
           # print(id)
@@ -82,10 +89,16 @@ class File4Faiss:
           # print(lst_range_shotes)
           # exit()
           for range_shot in lst_range_shotes:
+            # print(range_shot)
+            # print(type(range_shot))
+            l = len(range_shot)
             i+=1
-            first, end = range_shot
-            first = int(re.sub(',', '', first))
-            end = int(end)
+            first, end = int(range_shot[0]), int(range_shot[l-1])
+            # first = int(re.sub(' ', '', first))
+            # end = int(end)
+            
+            # print(first, end)
+            # exit()
 
             if int(first) <= id <= int(end):
               break
@@ -144,52 +157,67 @@ class File4Faiss:
 
     return {int(k):v for k,v in js.items()}
 
-  def write_bin_file(self, bin_path: str, json_path: str, method='L2', feature_shape=256): 
+  def write_bin_file(self, bin_path: str, json_path: str, method='L2', feature_shape=256, bin_file='./dict/faiss_blip_v1_cosine.bin'): 
     count = 0
     # print(json_path)
     id2img_fps = self.load_json_(json_path)
 
-    if method in 'L2':
-      index = faiss.IndexFlatL2(feature_shape)
-    elif method in 'cosine':
-      index = faiss.IndexFlatIP(feature_shape)
-    else:
-      assert f"{method} not supported"
+    # if method in 'L2':
+    #   index = faiss.IndexFlatL2(feature_shape)
+    # elif method in 'cosine':
+    #   index = faiss.IndexFlatIP(feature_shape)
+    # else:
+    #   assert f"{method} not supported"
+    
+    index = load_bin_file(bin_file)
     
     for _, value in id2img_fps.items():
       image_path = value["image_path"]
       video_name = image_path.split('/')[-2] + '.npy'
       # print(video_name)
 
-      video_id = re.sub('_V\d+', '', image_path.split('/')[-2])
-      batch_name = image_path.split('/')[-3].split('_')[-1]
-      # clip_name = f"CLIPFeatures_{video_id}_{batch_name}"
-      bert_name = './bert_obj_extract_feature'
+      # video_id = re.sub('_V\d+', '', image_path.split('/')[-2])
+      video_id = image_path.split('/')[-2]
+      # batch_name = image_path.split('/')[-3].split('_')[-1]
+      blip_name = f"BLIP_features"
+      # bert_name = './bert_obj_extract_feature'
 
-      feat_path = os.path.join(bert_name, video_name) 
-      print(feat_path)
+      feat_path = os.path.join(blip_name, video_name) 
+      feat_path = feat_path.replace('\\','/')
+      # print(image_path)
       # exit()
 
-      feats = np.load(feat_path)
+      if os.path.exists(feat_path):
+        feats = np.load(feat_path)
+        
 
-      ids = os.listdir(re.sub('/\d+.jpg','',image_path))
-      ids = sorted(ids, key=lambda x:int(x.split('.')[0]))
+        ids = os.listdir(re.sub('/\d+.jpg','',image_path))
+        # print(ids)
+        ids = sorted(ids, key=lambda x:int(x.split('.')[0]))
 
-      id = ids.index(image_path.split('/')[-1])
-      
-      feat = feats[id]
-      feat = feat.astype(np.float32).reshape(1,-1)
-      # print(feat.shape)
-      # exit()
-      index.add(feat)
-      
-      count += 1
+        id = ids.index(image_path.split('/')[-1])
+        
+        print(image_path.split('/')[-2])
+        print(image_path.split('/')[-1])
+        print(id)
+        print('------------------------------------------')
+        
+        # exit()
+        
+        feat = feats[id]
+        print(feat.shape)
+        feat = feat.astype(np.float32)
+        # print(feat.shape)
+        # exit()
+        index.add(feat)
+        
+        count += 1
     
-    # faiss.write_index(index, os.path.join(bin_path, f"faiss_blip_v1_{method}.bin"))
+    faiss.write_index(index, os.path.join(bin_path, f"faiss_blip_v1_{method}_final.bin"))
     # exit()
-    faiss.write_index(index, os.path.join(bin_path, f"faiss_bert_{method}.bin"))
+    # faiss.write_index(index, os.path.join(bin_path, f"faiss_bert_{method}.bin"))
 
-    print(f'Saved {os.path.join(bin_path, f"faiss_bert_{method}.bin")}')
+    print(f'Saved {os.path.join(bin_path, f"faiss_blip_{method}_final.bin")}')
     print(f"Number of Index: {count}")
 
 def load_json_file(json_path: str):
@@ -412,7 +440,7 @@ lavis_dir = os.path.join(current_dir, 'LAVIS')
 sys.path.append(lavis_dir)
 from lavis.models import load_model_and_preprocess
 
-def search_image2image(img_path, bin_file):
+def search_image2image(img_path, bin_file, k):
   raw_image = Image.open(img_path).convert("RGB")
   device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
   model, vis_processors, txt_processors = load_model_and_preprocess(name="blip_feature_extractor", model_type="base", is_eval=True, device=device)
@@ -430,7 +458,8 @@ def search_image2image(img_path, bin_file):
 
 
 # create_file = File4Faiss('Database')
-# create_file.write_bin_file(bin_path='./dict/', json_path='./dict/keyframes_id.json', method='cosine', feature_shape=768) # Bert model
+# create_file.write_json_file(json_path='./', shot_frames_path='./scenes_txt')
+# create_file.write_bin_file(bin_path='./dict/', json_path='./dict/dict_final/keyframes_id.json', method='cosine', feature_shape=256) # Bert model
 # def main():
   
   ### CREATE JSON AND BIN FILES #####
