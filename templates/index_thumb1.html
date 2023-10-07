@@ -487,18 +487,19 @@
                 border-radius: 5px;
                 text-align: center;
             }
-            .image .btn_select {
-                display: none;
-                position: absolute;
-                background-color: rgba(255,27,0,1);
-                color: white;
-                font-size: 14px;
-                padding: 5px 12px;
-                cursor: pointer;
-                border-radius: 5px;
-                text-align: center;
-                left: 19%;
-            }
+            .image .btn_submit {
+              display: none;
+              position: absolute;
+              background-color: rgba(255,27,0,1);
+              color: white;
+              font-size: 14px;
+              padding: 5px 12px;
+              cursor: pointer;
+              border-radius: 5px;
+              text-align: center;
+              left: 19%;
+              top: 40px;
+          }
             
             .image .btn_knn:hover{
               background-color: #e0e5ec;
@@ -763,6 +764,7 @@
         data = JSON.parse(data);
         let btn_knn = document.getElementsByClassName("btn_knn");
         let btn_select = document.getElementsByClassName("btn_select");
+        let btn_submit = document.getElementsByClassName("btn_submit");
         let hoverImg = document.getElementsByClassName("hoverImg");
         // console.log("data: " + JSON.stringify(data))
 
@@ -873,6 +875,8 @@
                     <div class="wrap_btn" >
                       <button class="btn_knn" onClick="go_img_search(${id})">IR</button>
                       <button class="btn_select" onClick="writecsv(${cur_idx},'${id},${imgpath}')">SELECT</button>
+                      <button class="btn_submit"  onclick="submit_btn(${cur_idx},'${id},${imgpath}')">SUBMIT</button>
+
                     </div>
                     <img class="hoverImg" onclick="go_neightbor_frame_search(${id})" alt='${id}' src="get_img?fpath=${imgpath}">
                     <div class="wrap_zoomIcon">
@@ -959,11 +963,13 @@
             //console.log('btn_knn: ' + btn_knn[id])
             btn_knn[id].style.display="block";
             btn_select[id].style.display="block";
+            btn_submit[id].style.display="block";
         }
         function mouseOut(id){
             // console.log('type: ' + typeof(btn_knn))
             btn_knn[id].style.display="none";
             btn_select[id].style.display="none";
+            btn_submit[id].style.display="none";
         }     
         function handleKeyPress(event) {
           if (event.keyCode === 13) {
