@@ -408,14 +408,15 @@
               position: relative;
               display: grid;
               overflow-x: hidden;
-              grid-template-columns: auto auto auto auto;
+              /*grid-template-columns: auto auto auto auto;*/
               background-color: #4E4D4D;
               height: 250px;
+              grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             }
             .container_list_img .list_frames .image img{
-              width: auto;
+              width: 225px;
               height: 200px;
-              object-fit: cover;
+              /*object-fit: cover;*/
             }
 
             /* Thêm phần hiển thị của checkbox */
@@ -498,9 +499,9 @@
               cursor: pointer;
               border-radius: 5px;
               text-align: center;
-              left: 19%;
+              left: 10%;
           }
-          
+
             .image .btn_submit {
               display: none;
               position: absolute;
@@ -511,7 +512,7 @@
               cursor: pointer;
               border-radius: 5px;
               text-align: center;
-              left: 19%;
+              left: 10%;
               top: 40px;
           }
             
@@ -545,7 +546,7 @@
               cursor: pointer;
               position: absolute;
               bottom: 3%;
-              left: 90%;
+              left: 8%;
               transform: translate(-50%, -50%);
             }
 
@@ -678,6 +679,7 @@
             <div class="topk">
               <!-- <label for="mode_topk">TOP K</label> -->
             <select name="" id="mode_topk_query">
+              <option value="top1000">1000</option>
               <option value="top200">200</option>
               <option value="top500">500</option>
               <option value="top1000">1000</option>
